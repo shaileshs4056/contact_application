@@ -40,7 +40,6 @@ abstract class _AuthStoreBase with Store {
   @observable
   Set<ContactListModel> selectedFavorite = {};
 
-
   @observable
   Set<ContactListModel> selectedContacts = {};
 
@@ -48,16 +47,14 @@ abstract class _AuthStoreBase with Store {
 
   _AuthStoreBase();
 
-
   @action
-
-    void isCheck(ContactListModel contact) {
- 
-      if (selectedContacts.contains(contact)) {
-        selectedContacts.remove(contact);
-      } else {
-        selectedContacts.add(contact);
-      }
+  bool isChecked(ContactListModel contact) {
+    print('Current selectedContacts: $selectedContacts');
+    if (selectedContacts.contains(contact)) {
+      return selectedContacts.remove(contact);
+    } else {
+      return selectedContacts.add(contact);
+    }
   }
 
   @action
@@ -96,8 +93,6 @@ abstract class _AuthStoreBase with Store {
       errorMessage = e.toString();
     }
   }
-
-  
 
   Future<UserDataResponse?> signInWithApple() async {
     bool isAvailable = await SignInWithApple.isAvailable();

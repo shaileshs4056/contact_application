@@ -6,17 +6,21 @@ import '../../data/model/contact/contact.dart';
 
 class AppDB {
   static const _appDbBox = '_appDbBox';
+  static const _favoritesBoxName = '_favoritesBox'; // Name for favorites box
   static const fcmKey = 'fcm_key';
   static const platform = 'platform';
-  final Box<dynamic> _box;
 
-  AppDB._(
-    this._box,
-  );
+  final Box<dynamic> _box;
+  final Box<ContactListModel> _favoritesBox;
+
+  AppDB._(this._box, this._favoritesBox);
 
   static Future<AppDB> getInstance() async {
     final box = await Hive.openBox<dynamic>(_appDbBox);
-    return AppDB._(box);
+    final favoritesBox =
+        await Hive.openBox<ContactListModel>(_favoritesBoxName);
+
+    return AppDB._(box, favoritesBox);
   }
 
   T getValue<T>(String key, {T? defaultValue}) =>
@@ -57,9 +61,9 @@ class AppDB {
     return contacts.cast<ContactListModel>();
   }
 
-  List<ContactListModel> get deleteContacts {
-    final contacts = _box.get("contacts", defaultValue: []) as List<dynamic>;
-    return contacts.cast<ContactListModel>();
+  List<ContactListModel> get favorites {
+    final favorites = _favoritesBox.values.toList();
+    return favorites;
   }
 
   Future<void> addContact(ContactListModel contact) async {
@@ -72,6 +76,25 @@ class AppDB {
     final contacts = this.contacts;
     contacts.remove(contact);
     await _box.put("contacts", contacts);
+  }
+Future<void> addFavorites(List<ContactListModel> contacts) async {
+  final favoriteContacts = contacts.where((contact) => !_favoritesBox.values.contains(contact)).toList();
+  await _favoritesBox.addAll(favoriteContacts);
+}
+
+ 
+
+  Future<void> addFavorite(ContactListModel contact) async {
+    if (!_favoritesBox.values.contains(contact)) {
+      await _favoritesBox.add(contact);
+    }
+  }
+
+  Future<void> removeFavorite(ContactListModel contact) async {
+    final favorites = _favoritesBox.values.toList();
+    favorites.remove(contact);
+    await _favoritesBox.clear(); // Clear the box and re-add updated favorites
+    await _favoritesBox.addAll(favorites);
   }
 
   void logout() {

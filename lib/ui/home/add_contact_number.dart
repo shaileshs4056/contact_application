@@ -49,7 +49,7 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
   int? count;
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
-
+late Map<String, List<ContactListModel>> groupedContacts;
   @override
   void initState() {
     super.initState();

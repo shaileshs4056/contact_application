@@ -66,6 +66,8 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
     return Scaffold(
       backgroundColor: AppColor.mercury,
       appBar: AppBar(
+        automaticallyImplyLeading: true,
+        leadingWidth: 60.w,
         backgroundColor: AppColor.mercury,
         elevation: 0,
         scrolledUnderElevation: 0,
