@@ -18,7 +18,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-
 import '../../data/model/contact/contact.dart';
 
 @RoutePage()
@@ -49,7 +48,7 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
   int? count;
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
-late Map<String, List<ContactListModel>> groupedContacts;
+
   @override
   void initState() {
     super.initState();
@@ -123,15 +122,6 @@ late Map<String, List<ContactListModel>> groupedContacts;
                 await appDB.addContact(newContact);
                 clearForm();
                 appRouter.push(ShowContactListRoute());
-                // contactList.add(
-                //   ContactListModel(
-                //       id: contactList.length,
-                //       firstname: firstNameController.text,
-                //       lastname: lastNameController.text,
-                //       company: CompanyController.text,
-                //       image: _image!.path),
-                // );
-      
               }
             },
             child: Text(

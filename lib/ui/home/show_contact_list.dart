@@ -44,7 +44,7 @@ late Map<String, List<ContactListModel>> groupedContacts;
 
 class _ShowContactListPageState extends State<ShowContactListPage> {
   late TextEditingController searchController;
-  List<ContactListModel> _searchResult = [];
+  late List<ContactListModel> _searchResult = [];
 
   Future<void> _loadContacts() async {
     final contacts = appDB.contacts;
@@ -149,13 +149,13 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
   Future<void> _addFavoriteSelectedContacts() async {
     final selectedContacts =
-        authStore.selectedContacts.toList(); // Convert to List if it's not
+        authStore.selectedFavorite.toList(); // Convert to List if it's not
 
     // Add the list of selected contacts to favorites
-    await appDB.addFavorites(selectedContacts);
+    // await appDB.addFavorites(selectedContacts);
 
     // Clear selected contacts in MobX
-    authStore.selectedContacts.clear();
+    authStore.selectedFavorite.clear();
 
     // Refresh the favorite contacts list and the grouped contacts
     await _loadFavoriteContacts();
@@ -167,7 +167,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     return contacts;
   }
 
-  late List<ContactListModel> _favoriteContacts;
+  List<ContactListModel> _favoriteContacts = [];
   Future<void> _loadFavoriteContacts() async {
     final contacts = await getFavoriteContacts();
     setState(() {
@@ -186,28 +186,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
           backgroundColor: AppColor.white,
           elevation: 0,
           scrolledUnderElevation: 0,
-          leading: Padding(
-            padding: EdgeInsets.only(left: 10),
-            child: Row(
-              children: [
-                InkWell(
-                  onTap: () {
-                    appRouter.pop();
-                  },
-                  child: Icon(
-                    Icons.arrow_back_ios_new,
-                    size: 15,
-                    color: AppColor.blueDiamond,
-                  ),
-                ),
-                5.horizontalSpace,
-                Text(
-                  "List",
-                  style: textRegular.copyWith(color: AppColor.blueDiamond),
-                ),
-              ],
-            ),
-          ),
           actions: [
             Row(
               children: [
@@ -262,6 +240,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         ),
         body: Observer(builder: (_) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,159 +288,181 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 ],
               ).wrapPaddingSymmetric(horizontal: 15.w),
               20.verticalSpace,
-              _favoriteContacts.isEmpty
-                  ? Center(child: Text('No favorites yet'))
-                  : ListView.builder(
-                      itemCount: _favoriteContacts.length,
-                      itemBuilder: (context, index) {
-                        final contact = _favoriteContacts[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: FileImage(File(contact.image!)),
-                          ),
-                          title:
-                              Text('${contact.firstname} ${contact.lastname}'),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () {
-                              // Implement remove from favorites
-                              appDB.removeFavorite(contact);
-                              _loadFavoriteContacts(); // Refresh the list
-                            },
-                          ),
-                        );
-                      },
-                    ),
-              Expanded(
-                child: Observer(builder: (_) {
-                  return ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    shrinkWrap: true,
-                    itemCount: groupedContacts.length,
-                    itemBuilder: (context, index) {
-                      final letter = groupedContacts.keys.elementAt(index);
-                      final contactList = groupedContacts[letter]!;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Display the letter as a section header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            child: Text(
-                              letter,
-                              style: textRegular.copyWith(color: AppColor.grey),
-                            ),
-                          ),
-                          // Display the contacts for this letter
-                          ...contactList.map((contact) {
-                            bool isSelected = _value;
-
-                            // bool ischeck =
-                            //     authStore.selectedContacts.contains(contact);
-
-                            bool _isfavorite =
-                                authStore.selectedFavorite.contains(contact);
-
-                            return InkWell(
-                              onLongPress: () {
-                                onLongPressContact(_value);
-                              },
-                              onTap: () {
-                                // appRouter
-                                //     .replaceAll([DeleteEditRoute(id: index)]);
-                              },
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(15),
-                                        child: Image.file(
-                                          File(contact.image!),
-                                          height: 50,
-                                          width: 50,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                      SizedBox(width: 10),
-                                      Text(
-                                        "${contact.firstname} ",
-                                        style: textMedium.copyWith(
-                                            color: AppColor.grey),
-                                      ),
-                                      Text(contact.lastname!,
-                                          style: textMedium),
-                                      Spacer(),
-                                      if (isSelected)
-                                        InkWell(
-                                          onTap: () {
-                                            isfavorite(contact);
-                                          },
-                                          child: Container(
-                                            child: _isfavorite
-                                                ? Icon(Icons.favorite,
-                                                    size: 20.0,
-                                                    color: Colors.red)
-                                                : Icon(Icons.favorite,
-                                                    size: 20.0,
-                                                    color: Colors.grey),
-                                          ),
-                                        ),
-                                      10.horizontalSpace,
-                                      if (isSelected)
-                                        Observer(builder: (_) {
-                                          var isChecked = authStore
-                                              .selectedContacts
-                                              .contains(contact);
-
-                                          return InkWell(
-                                            onTap: () {
-                                              authStore.isChecked(contact);
-                                              setState(() {});
-                                              print(authStore.selectedContacts
-                                                  .contains(contact));
-                                            },
-                                            child: Container(
-                                              height: 20,
-                                              width: 20,
-                                              decoration: BoxDecoration(
-                                                border: Border.all(
-                                                  width: 1,
-                                                  color: AppColor.blueDiamond,
-                                                ),
-                                                shape: BoxShape.circle,
-                                                color: authStore
-                                                        .selectedContacts
-                                                        .contains(contact)
-                                                    ? Colors.blue
-                                                    : AppColor.transparent,
-                                              ),
-                                              child: authStore.selectedContacts
-                                                      .contains(contact)
-                                                  ? Icon(
-                                                      Icons.check,
-                                                      size: 15.0,
-                                                      color: Colors.white,
-                                                    )
-                                                  : null,
-                                            ),
-                                          );
-                                        }),
-                                    ],
-                                  ).wrapPaddingSymmetric(vertical: 8),
-                                  Divider(),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ],
-                      ).wrapPaddingSymmetric(horizontal: 15.w);
-                    },
-                  );
-                }),
-              ),
+              Flexible(fit: FlexFit.loose, child: _buildFavoriteContactsList()),
+              20.verticalSpace,
+              Expanded(child: _buildContactList()),
             ],
           );
         }));
+  }
+
+  Widget _buildFavoriteContactsList() {
+    if (_favoriteContacts.isEmpty) {
+      return Center(
+        child: Text('No favorite contacts'),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: _favoriteContacts.length,
+      itemBuilder: (context, index) {
+        final contact = _favoriteContacts[index];
+        return ListTile(
+          trailing: Container(
+              padding: EdgeInsets.only(right: 25),
+              child: Icon(Icons.favorite, size: 20.0, color: Colors.red)),
+          title: Text(contact.firstname
+              .toString()), // Adjust according to your ContactListModel
+          subtitle: Text(contact.lastname
+              .toString()), // Adjust according to your ContactListModel
+        );
+      },
+    );
+  }
+
+  /// contact section
+  ///
+  Widget _buildContactSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
+          child: Text(
+            "Favorite",
+            style: textBold.copyWith(color: AppColor.black, fontSize: 15.spMin),
+          ),
+        ),
+        Divider(
+          color: AppColor.black,
+          height: 0,
+        ),
+        Flexible(child: _buildFavoriteContactsList()),
+        Divider(
+          color: AppColor.black,
+          height: 0,
+        ),
+        Padding(
+          padding: EdgeInsets.only(left: 15.w, top: 15.h),
+          child: Text(
+            "Contacts",
+            style: textBold.copyWith(color: AppColor.black, fontSize: 16.spMin),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// contact list view
+
+  Widget _buildContactList() {
+    return Observer(builder: (_) {
+      return ListView.builder(
+        scrollDirection: Axis.vertical,
+        shrinkWrap: true,
+        itemCount: groupedContacts.length,
+        itemBuilder: (context, index) {
+          final letter = groupedContacts.keys.elementAt(index);
+          final contactList = groupedContacts[letter]!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Display the letter as a section header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Text(
+                  letter,
+                  style: textRegular.copyWith(color: AppColor.grey),
+                ),
+              ),
+              // Display the contacts for this letter
+              ...contactList.map((contact) {
+                bool isSelected = _value;
+                bool _isfavorite = authStore.selectedFavorite.contains(contact);
+
+                return GestureDetector(
+                  onLongPress: () {
+                    onLongPressContact(_value);
+                  },
+                  onTap: () {
+                    appRouter.replaceAll([DeleteEditRoute(id: contact.id!)]);
+                  },
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Image.file(
+                              File(contact.image!),
+                              height: 50,
+                              width: 50,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            "${contact.firstname} ",
+                            style: textMedium.copyWith(color: AppColor.grey),
+                          ),
+                          Text(contact.lastname!, style: textMedium),
+                          Spacer(),
+                          if (isSelected)
+                            InkWell(
+                              onTap: () {
+                                isfavorite(contact);
+                              },
+                              child: Container(
+                                child: _isfavorite
+                                    ? Icon(Icons.favorite,
+                                        size: 20.0, color: Colors.red)
+                                    : Icon(Icons.favorite,
+                                        size: 20.0, color: Colors.grey),
+                              ),
+                            ),
+                          SizedBox(width: 10),
+                          if (isSelected)
+                            Observer(builder: (_) {
+                              var isChecked =
+                                  authStore.selectedContacts.contains(contact);
+
+                              return GestureDetector(
+                                onTap: () {
+                                  authStore.isChecked(contact);
+                                  setState(() {});
+                                },
+                                child: Container(
+                                  height: 20,
+                                  width: 20,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      width: 1,
+                                      color: AppColor.blueDiamond,
+                                    ),
+                                    shape: BoxShape.circle,
+                                    color: isChecked
+                                        ? Colors.blue
+                                        : AppColor.transparent,
+                                  ),
+                                  child: isChecked
+                                      ? Icon(Icons.check,
+                                          size: 15.0, color: Colors.white)
+                                      : null,
+                                ),
+                              );
+                            }),
+                        ],
+                      ).wrapPaddingSymmetric(vertical: 8),
+                      Divider(),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ).wrapPaddingSymmetric(horizontal: 15.w);
+        },
+      );
+    });
   }
 }

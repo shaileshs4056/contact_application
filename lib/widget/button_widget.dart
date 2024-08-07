@@ -26,20 +26,20 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 60.h,
+      height: 50.h,
       child: MaterialButton(
         elevation: elevation,
         padding: const EdgeInsets.only(top: 15.0, bottom: 15.0),
         onPressed: callback,
-        color: buttonColor ? AppColor.white : AppColor.white,
+        color: buttonColor ? AppColor.red : AppColor.white,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: AppColor.primaryColor, width: 2.w),
+          side: BorderSide(color: AppColor.red, width: 2.w),
           borderRadius: BorderRadius.all(Radius.circular(radius ?? 10)),
         ),
         child: Text(
           label,
           style: textMedium.copyWith(
-            color: AppColor.primaryColor,
+            color: AppColor.white,
             fontSize: 16.spMin,
           ),
         ),

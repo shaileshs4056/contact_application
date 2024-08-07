@@ -14,8 +14,6 @@ import 'package:contact_number_demo/widget/custom_error_widget.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import 'package:hive_flutter/hive_flutter.dart';
-
 Future<void> main() async {
   runZonedGuarded(
     () async {

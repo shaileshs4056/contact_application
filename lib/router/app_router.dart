@@ -19,10 +19,10 @@ class AppRouter extends _$AppRouter {
 
   @override
   final List<AutoRoute> routes = [
-    AutoRoute(page: SplashRoute.page, initial: true),
+    AutoRoute(page: SplashRoute.page, ),
     AutoRoute(page: SignUpRoute.page),
     AutoRoute(page: AddContactNumberRoute.page),
-    AutoRoute(page: ShowContactListRoute.page),
+    AutoRoute(page: ShowContactListRoute.page,initial: true),
     AutoRoute(page: DeleteEditRoute.page),
   ];
 }
