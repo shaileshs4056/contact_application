@@ -42,6 +42,8 @@ class ShowContactListPage extends StatefulWidget {
 
 late Map<String, List<ContactListModel>> groupedContacts;
 
+List<ContactListModel> _favoriteContacts = [];
+
 class _ShowContactListPageState extends State<ShowContactListPage> {
   late TextEditingController searchController;
   late List<ContactListModel> _searchResult = [];
@@ -56,6 +58,8 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
   @override
   void initState() {
     searchController = TextEditingController();
+
+    // Sync scroll controller 1 with controller 2
     _loadContacts();
     _loadFavoriteContacts();
     super.initState();
@@ -112,17 +116,18 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     });
   }
 
-  void toggleAllFavorites() {
-    setState(() {
-      if (authStore.selectedFavorite.length == appDB.contacts.length) {
-        // If all contacts are already favorites, clear the selection
-        authStore.selectedFavorite.clear();
-      } else {
-        // Otherwise, add all contacts to the favorites
-        authStore.selectedFavorite.addAll(appDB.contacts);
-      }
-    });
-  }
+  // void toggleAllFavorites() {
+  //   setState(() {
+  //     if (authStore.selectedFavorite.length == appDB.contacts.length) {
+  //       print(appDB.contacts[0].isFavorite);
+  //       // If all contacts are already favorites, clear the selection
+  //       authStore.selectedFavorite.clear();
+  //     } else {
+  //       // Otherwise, add all contacts to the favorites
+  //       authStore.selectedFavorite.addAll(appDB.contacts);
+  //     }
+  //   });
+  // }
 
   void selectAll() {
     setState(() {
@@ -147,19 +152,37 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     });
   }
 
-  Future<void> _addFavoriteSelectedContacts() async {
-    final selectedContacts =
-        authStore.selectedFavorite.toList(); // Convert to List if it's not
+  Future<void> _fav() async {
+    final contacts = appDB.contacts;
 
-    // Add the list of selected contacts to favorites
-    // await appDB.addFavorites(selectedContacts);
+    // Add selected contacts to the _favoriteContacts list
+    _favoriteContacts.addAll(authStore.selectedContacts
+        .where((contact) => !_favoriteContacts.contains(contact)));
 
-    // Clear selected contacts in MobX
-    authStore.selectedFavorite.clear();
+    // Save the updated contacts list to the database
+    await appDB.setValue("contacts", contacts);
+    authStore.selectedContacts.clear();
 
-    // Refresh the favorite contacts list and the grouped contacts
-    await _loadFavoriteContacts();
-    await _loadContacts();
+    setState(() {
+      // Clear the selected contacts and refresh the grouped contacts
+      authStore.selectedFavorite.clear();
+      groupedContacts = groupContactsByLetter(contacts);
+    });
+  }
+
+  Future<void> _loadFavoriteContacts() async {
+    final contacts = await getFavoriteContacts();
+    setState(() {
+      _favoriteContacts = contacts;
+    });
+
+    // Print the favorite contacts list
+    print(
+        'Favorite Contacts: ${_favoriteContacts.isNotEmpty ? _favoriteContacts[0].firstname : 'No favorites'}');
+    for (var contact in _favoriteContacts) {
+      print(
+          'Name: ${contact.firstname} ${contact.lastname}, ID: ${contact.id}');
+    }
   }
 
   Future<List<ContactListModel>> getFavoriteContacts() async {
@@ -167,18 +190,28 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     return contacts;
   }
 
-  List<ContactListModel> _favoriteContacts = [];
-  Future<void> _loadFavoriteContacts() async {
-    final contacts = await getFavoriteContacts();
-    setState(() {
-      _favoriteContacts = contacts;
-    });
+  Future<void> _toggleSelectedFavorites() async {
+    final selectedContacts =
+        authStore.selectedFavorite.toList(); // Convert to List if it's not
+
+    // Update the favorite status for all selected contacts
+    await appDB.toggleFavorites(selectedContacts);
+
+    // Clear selected contacts in MobX
+    authStore.selectedFavorite.clear();
+
+    // Refresh the favorite contacts list and the grouped contacts
+    await _loadFavoriteContacts();
+    await _loadContacts();
+
+    setState(() {});
   }
 
   bool _value = false;
 
   @override
   Widget build(BuildContext context) {
+    print(_favoriteContacts.length);
     return Scaffold(
         backgroundColor: AppColor.white,
         appBar: AppBar(
@@ -208,8 +241,8 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                       _deleteSelectedContacts();
                     },
                     child: Icon(
-                      Icons.delete_outline_outlined,
-                      color: AppColor.blueDiamond,
+                      Icons.delete,
+                      color: AppColor.red,
                     ),
                   ).wrapPaddingOnly(right: 15.w),
                 ),
@@ -217,11 +250,12 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   visible: _value,
                   child: InkWell(
                     onTap: () {
-                      _addFavoriteSelectedContacts();
+                      _fav();
+                      // _toggleSelectedFavorites();
                     },
                     child: Icon(
-                      Icons.favorite_border_outlined,
-                      color: AppColor.blueDiamond,
+                      Icons.favorite,
+                      color: AppColor.red,
                     ),
                   ).wrapPaddingOnly(right: 15.w),
                 ),
@@ -238,62 +272,85 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
             ),
           ],
         ),
-        body: Observer(builder: (_) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Text(
-                    "Contacts",
-                    style: textBold.copyWith(fontSize: 25.spMin),
-                  ),
-                  10.0.verticalSpace,
-                  AppTextField(
-                    controller: searchController,
-                    contentPadding: EdgeInsets.all(10),
-                    label: "",
-                    hint: "Search",
-                    onChanged: onSearchTextChanged,
-                    validators: passwordValidator,
-                    keyboardType: TextInputType.visiblePassword,
-                    keyboardAction: TextInputAction.done,
-                    maxLength: 15,
-                    filled: true,
-                    suffixIcon: Align(
-                      alignment: Alignment.centerRight,
-                      heightFactor: 1.0,
-                      widthFactor: 1.0,
-                      child: GestureDetector(
-                        onTap: () => Future.delayed(Duration.zero, () {}),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Icon(
-                            Icons.keyboard_voice_rounded,
-                            color: AppColor.grey,
+        body: SingleChildScrollView(
+          child: Observer(builder: (_) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Contacts",
+                      style: textBold.copyWith(fontSize: 25.spMin),
+                    ),
+                    10.0.verticalSpace,
+                    AppTextField(
+                      controller: searchController,
+                      contentPadding: EdgeInsets.all(10),
+                      label: "",
+                      hint: "Search",
+                      onChanged: onSearchTextChanged,
+                      validators: passwordValidator,
+                      keyboardType: TextInputType.visiblePassword,
+                      keyboardAction: TextInputAction.done,
+                      maxLength: 15,
+                      filled: true,
+                      suffixIcon: Align(
+                        alignment: Alignment.centerRight,
+                        heightFactor: 1.0,
+                        widthFactor: 1.0,
+                        child: GestureDetector(
+                          onTap: () => Future.delayed(Duration.zero, () {}),
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: Icon(
+                              Icons.keyboard_voice_rounded,
+                              color: AppColor.grey,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    prefixIcon: IconButton(
-                      onPressed: null,
-                      icon: Icon(
-                        Icons.search_outlined,
-                        size: 25,
+                      prefixIcon: IconButton(
+                        onPressed: null,
+                        icon: Icon(
+                          Icons.search_outlined,
+                          size: 25,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ).wrapPaddingSymmetric(horizontal: 15.w),
-              20.verticalSpace,
-              Flexible(fit: FlexFit.loose, child: _buildFavoriteContactsList()),
-              20.verticalSpace,
-              Expanded(child: _buildContactList()),
-            ],
-          );
-        }));
+                  ],
+                ).wrapPaddingSymmetric(horizontal: 15.w),
+                20.verticalSpace,
+                Wrap(
+                    children: List.generate(
+                  _favoriteContacts.length,
+                  (index) {
+                    final data = _favoriteContacts[index];
+                    final image = data.image;
+                    final name = data.firstname;
+
+                    return Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundImage: FileImage(File(image!)),
+                        ).wrapPaddingBottom(5.h),
+                        Text(name!)
+                      ],
+                    ).wrapPaddingSymmetric(horizontal: 15.w, vertical: 15.h);
+                  },
+                )),
+                // Flexible(child: _buildFavouriteContact()),
+                // _buildContactSection(),
+                _buildContactList()
+                // _buildFavouriteContact(),
+                // _buildContactList(),
+              ],
+            );
+          }),
+        ));
   }
 
   Widget _buildFavoriteContactsList() {
@@ -305,6 +362,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
     return ListView.builder(
       shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
       itemCount: _favoriteContacts.length,
       itemBuilder: (context, index) {
         final contact = _favoriteContacts[index];
@@ -355,12 +413,54 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
   }
 
   /// contact list view
+  Widget _buildFavouriteContact() {
+    return _favoriteContacts.isEmpty
+        ? SizedBox.shrink()
+        : ListView.builder(
+            itemCount: _favoriteContacts.length,
+            shrinkWrap: true,
+            itemBuilder: (context, index) {
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Image.file(
+                          File(_favoriteContacts[index].image!),
+                          height: 50,
+                          width: 50,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        "${_favoriteContacts[index].firstname} ",
+                        style: textMedium.copyWith(color: AppColor.grey),
+                      ),
+                      Text(
+                        "${_favoriteContacts[index].lastname!} ",
+                        style: textMedium,
+                      ),
+                      Text(
+                        "${_favoriteContacts[index].isFavorite!}",
+                        style: textMedium,
+                      ),
+                    ],
+                  ),
+                  Divider(),
+                ],
+              ).wrapPaddingSymmetric(horizontal: 15.w);
+              ;
+            },
+          );
+  }
 
   Widget _buildContactList() {
     return Observer(builder: (_) {
       return ListView.builder(
-        scrollDirection: Axis.vertical,
         shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
         itemCount: groupedContacts.length,
         itemBuilder: (context, index) {
           final letter = groupedContacts.keys.elementAt(index);
@@ -406,22 +506,28 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                             "${contact.firstname} ",
                             style: textMedium.copyWith(color: AppColor.grey),
                           ),
+                          Text(
+                            "${contact.isFavorite} ",
+                            style: textMedium.copyWith(color: AppColor.grey),
+                          ),
                           Text(contact.lastname!, style: textMedium),
                           Spacer(),
                           if (isSelected)
-                            InkWell(
-                              onTap: () {
-                                isfavorite(contact);
-                              },
-                              child: Container(
-                                child: _isfavorite
-                                    ? Icon(Icons.favorite,
-                                        size: 20.0, color: Colors.red)
-                                    : Icon(Icons.favorite,
-                                        size: 20.0, color: Colors.grey),
-                              ),
-                            ),
-                          SizedBox(width: 10),
+                            // InkWell(
+                            //   onTap: () {
+                            //     isfavorite(contact);
+                            //     _favoriteContacts.add(contact);
+                            //     setState(() {});
+                            //   },
+                            //   child: Container(
+                            //     child: _isfavorite
+                            //         ? Icon(Icons.favorite,
+                            //             size: 20.0, color: Colors.red)
+                            //         : Icon(Icons.favorite,
+                            //             size: 20.0, color: Colors.grey),
+                            //   ),
+                            // ),
+                            SizedBox(width: 10),
                           if (isSelected)
                             Observer(builder: (_) {
                               var isChecked =

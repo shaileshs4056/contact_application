@@ -43,10 +43,7 @@ class AppDB {
 
   bool get isLogin {
     final value = getValue<bool>("isLogin", defaultValue: false);
-    if (value is bool) {
-      return value;
-    }
-    throw TypeError();
+    return value;
   }
 
   set isLogin(bool update) => setValue("isLogin", update);
@@ -75,13 +72,9 @@ class AppDB {
   set user(UserData user) => setValue("user", user);
 
   List<ContactListModel> get contacts {
-    final contacts = _box.get("contacts", defaultValue: <ContactListModel>[]) as List<dynamic>;
+    final contacts = _box.get("contacts", defaultValue: <ContactListModel>[])
+        as List<dynamic>;
     return contacts.cast<ContactListModel>();
-  }
-
-  List<ContactListModel> get favorites {
-    final favorites = _box.get("favorites", defaultValue: <ContactListModel>[]) as List<dynamic>;
-    return favorites.cast<ContactListModel>();
   }
 
   Future<void> addContact(ContactListModel contact) async {
@@ -96,46 +89,30 @@ class AppDB {
     await setValue("contacts", contacts);
   }
 
-  Future<void> addFavorite(ContactListModel contact) async {
-    final favorites = this.favorites;
-    if (!favorites.any((c) => c.id == contact.id)) {
-      favorites.add(contact);
-      await setValue("favorites", favorites);
-    }
+  List<ContactListModel> get favorites {
+    final favorites = _box.get("favorites", defaultValue: []) as List<dynamic>;
+    return favorites.cast<ContactListModel>().where((c) => c.isFavorite!).toList();
   }
 
-  Future<void> removeFavorite(ContactListModel contact) async {
-    final favorites = this.favorites;
-    favorites.removeWhere((c) => c.id == contact.id);
-    await setValue("favorites", favorites);
-  }
-
-  Future<void> toggleFavorite(ContactListModel contact) async {
+  Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
     final contacts = this.contacts;
-    final index = contacts.indexWhere((c) => c.id == contact.id);
-    
-    if (index != -1) {
-      final currentContact = contacts[index];
-      final updatedContact = currentContact.copyWith(isFavorite: !currentContact.isFavorite!);
-
-      contacts[index] = updatedContact;
-      await setValue("contacts", contacts);
-
-      if (updatedContact.isFavorite!) {
-        await addFavorite(updatedContact);
-      } else {
-        await removeFavorite(updatedContact);
+    for (var selectedContact in selectedContacts) {
+      final index = contacts.indexWhere((c) => c.id == selectedContact.id);
+      if (index != -1) {
+        final updatedContact = contacts[index].copyWith(isFavorite: !contacts[index].isFavorite!);
+        contacts[index] = updatedContact;
       }
-    } else {
-      print("Contact not found");
     }
+    await setValue("contacts", contacts);
   }
 
-  Future<void> updateContactAtIndex(int index, ContactListModel updatedContact) async {
+  Future<void> updateContactAtIndex(
+      int index, ContactListModel updatedContact) async {
     final contacts = this.contacts;
     if (index >= 0 && index < contacts.length) {
       contacts[index] = updatedContact;
-      await setValue("contacts", contacts); // Use setValue to save the updated list
+      await setValue(
+          "contacts", contacts); // Use setValue to save the updated list
     } else {
       throw IndexError(index, contacts, 'Index out of range');
     }
