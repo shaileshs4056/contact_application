@@ -94,17 +94,23 @@ class AppDB {
     return favorites.cast<ContactListModel>().where((c) => c.isFavorite!).toList();
   }
 
-  Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
-    final contacts = this.contacts;
-    for (var selectedContact in selectedContacts) {
-      final index = contacts.indexWhere((c) => c.id == selectedContact.id);
-      if (index != -1) {
-        final updatedContact = contacts[index].copyWith(isFavorite: !contacts[index].isFavorite!);
-        contacts[index] = updatedContact;
-      }
+Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
+  final contacts = this.contacts;
+  
+  for (var selectedContact in selectedContacts) {
+    final index = contacts.indexWhere((c) => c.id == selectedContact.id);
+    if (index != -1) {
+      // Directly toggle the isFavorite status
+      contacts[index] = contacts[index].copyWith(
+        isFavorite: !(contacts[index].isFavorite ?? false),
+      );
     }
-    await setValue("contacts", contacts);
   }
+  
+  // Update the database with the modified contacts list
+  await setValue("contacts", contacts);
+}
+
 
   Future<void> updateContactAtIndex(
       int index, ContactListModel updatedContact) async {

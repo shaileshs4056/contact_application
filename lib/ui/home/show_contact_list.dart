@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:auto_route/auto_route.dart';
 import 'package:contact_number_demo/ui/auth/store/auth_store.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import '../../core/db/app_db.dart';
 import '../../data/model/contact/contact.dart';
@@ -61,7 +62,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
     // Sync scroll controller 1 with controller 2
     _loadContacts();
-    _loadFavoriteContacts();
     super.initState();
   }
 
@@ -96,39 +96,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     });
   }
 
-  void isCheck(ContactListModel contact) {
-    setState(() {
-      if (authStore.selectedContacts.contains(contact)) {
-        authStore.selectedContacts.remove(contact);
-      } else {
-        authStore.selectedContacts.add(contact);
-      }
-    });
-  }
-
-  void isfavorite(ContactListModel contact) {
-    setState(() {
-      if (authStore.selectedFavorite.contains(contact)) {
-        authStore.selectedFavorite.remove(contact);
-      } else {
-        authStore.selectedFavorite.add(contact);
-      }
-    });
-  }
-
-  // void toggleAllFavorites() {
-  //   setState(() {
-  //     if (authStore.selectedFavorite.length == appDB.contacts.length) {
-  //       print(appDB.contacts[0].isFavorite);
-  //       // If all contacts are already favorites, clear the selection
-  //       authStore.selectedFavorite.clear();
-  //     } else {
-  //       // Otherwise, add all contacts to the favorites
-  //       authStore.selectedFavorite.addAll(appDB.contacts);
-  //     }
-  //   });
-  // }
-
   void selectAll() {
     setState(() {
       if (authStore.selectedContacts.length == appDB.contacts.length) {
@@ -146,13 +113,40 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     contacts
         .removeWhere((contact) => authStore.selectedContacts.contains(contact));
     await appDB.setValue("contacts", contacts);
+    showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // User must tap button to dismiss
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Exit'),
+          content: Text('Selected item delected successfully '),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(false); // Return false if the user cancels
+              },
+            ),
+            TextButton(
+              child: Text('Exit'),
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(true); // Return true if the user confirms
+              },
+            ),
+          ],
+        );
+      },
+    );
     setState(() {
       authStore.selectedFavorite.clear();
+      _value = false;
       groupedContacts = groupContactsByLetter(contacts);
     });
   }
 
-  Future<void> _fav() async {
+  Future<void> _addfavorite() async {
     final contacts = appDB.contacts;
 
     // Add selected contacts to the _favoriteContacts list
@@ -162,13 +156,19 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     // Save the updated contacts list to the database
     await appDB.setValue("contacts", contacts);
     authStore.selectedContacts.clear();
-
+    _value = false;
     setState(() {
       // Clear the selected contacts and refresh the grouped contacts
       authStore.selectedFavorite.clear();
+
       groupedContacts = groupContactsByLetter(contacts);
     });
   }
+
+  // Future<List<ContactListModel>> getFavoriteContacts() async {
+  //   final contacts = appDB.favorites;
+  //   return contacts;
+  // }
 
   Future<void> _loadFavoriteContacts() async {
     final contacts = await getFavoriteContacts();
@@ -176,7 +176,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
       _favoriteContacts = contacts;
     });
 
-    // Print the favorite contacts list
     print(
         'Favorite Contacts: ${_favoriteContacts.isNotEmpty ? _favoriteContacts[0].firstname : 'No favorites'}');
     for (var contact in _favoriteContacts) {
@@ -190,21 +189,54 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     return contacts;
   }
 
-  Future<void> _toggleSelectedFavorites() async {
-    final selectedContacts =
-        authStore.selectedFavorite.toList(); // Convert to List if it's not
+ Future<void> _toggleSelectedFavorites() async {
+  final selectedContacts = authStore.selectedContacts.toList();
+  
+  // Toggle the isFavorite status in the database
+  await appDB.toggleFavorites(selectedContacts);
+  
+  // Clear the selection in the state management store
+  authStore.selectedFavorite.clear();
+  
+  // Reload the favorite contacts to refresh the UI
+  // await _loadFavoriteContacts();
+  
+  setState(() {}); // Trigger a UI update
+}
 
-    // Update the favorite status for all selected contacts
-    await appDB.toggleFavorites(selectedContacts);
 
-    // Clear selected contacts in MobX
-    authStore.selectedFavorite.clear();
-
-    // Refresh the favorite contacts list and the grouped contacts
-    await _loadFavoriteContacts();
-    await _loadContacts();
-
-    setState(() {});
+  Future<bool> _showExitConfirmationDialog() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // User must tap button to dismiss
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Exit'),
+          content: Text('Are you sure you want to exit the application?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(false); // Return false if the user cancels
+              },
+            ),
+            TextButton(
+              child: Text('Exit'),
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(true); // Return true if the user confirms
+              },
+            ),
+          ],
+        );
+      },
+    ).then((value) {
+      if (value ?? false) {
+        SystemNavigator.pop(); // Exit the application
+      }
+      return value ?? false;
+    });
   }
 
   bool _value = false;
@@ -218,6 +250,32 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
           centerTitle: false,
           backgroundColor: AppColor.white,
           elevation: 0,
+          leadingWidth: 70,
+          leading: TextButton.icon(
+            onPressed: () async {
+              if (appRouter.canPop()) {
+                // If there are routes to pop, pop the route
+                appRouter.pop();
+              } else {
+                // If there are no routes to pop, show the exit confirmation dialog
+                bool shouldExit = await _showExitConfirmationDialog();
+                if (shouldExit) {
+                  // Handle the app exit logic here if needed
+                  // You might want to use SystemNavigator.pop() for exiting the app
+                  SystemNavigator.pop(); // This line exits the app on Android
+                }
+              }
+            },
+            label: Text(
+              "List",
+              style: textRegular.copyWith(color: AppColor.blueDiamond),
+            ),
+            icon: Icon(
+              Icons.arrow_back_ios_new,
+              color: AppColor.blueDiamond,
+              size: 20,
+            ),
+          ),
           scrolledUnderElevation: 0,
           actions: [
             Row(
@@ -250,8 +308,9 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   visible: _value,
                   child: InkWell(
                     onTap: () {
-                      _fav();
-                      // _toggleSelectedFavorites();
+                      _toggleSelectedFavorites();
+                      // _addfavorite();
+                      ;
                     },
                     child: Icon(
                       Icons.favorite,
@@ -323,6 +382,19 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   ],
                 ).wrapPaddingSymmetric(horizontal: 15.w),
                 20.verticalSpace,
+                Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
+                  child: Text(
+                    "Favorite",
+                    style: textBold.copyWith(
+                        color: AppColor.black, fontSize: 15.spMin),
+                  ),
+                ),
+                Divider(
+                  color: AppColor.black,
+                  height: 0,
+                ),
                 Wrap(
                     children: List.generate(
                   _favoriteContacts.length,
@@ -330,6 +402,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                     final data = _favoriteContacts[index];
                     final image = data.image;
                     final name = data.firstname;
+                    final isFav = data.isFavorite;
 
                     return Column(
                       children: [
@@ -337,14 +410,28 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                           radius: 40,
                           backgroundImage: FileImage(File(image!)),
                         ).wrapPaddingBottom(5.h),
-                        Text(name!)
+                        Text(name!),
+                        Text(isFav.toString())
                       ],
                     ).wrapPaddingSymmetric(horizontal: 15.w, vertical: 15.h);
                   },
                 )),
+                Divider(
+                  color: AppColor.black,
+                  height: 0,
+                ),
+                Padding(
+                  padding: EdgeInsets.only(left: 15.w, top: 15.h),
+                  child: Text(
+                    "Contacts",
+                    style: textBold.copyWith(
+                        color: AppColor.black, fontSize: 16.spMin),
+                  ),
+                ),
                 // Flexible(child: _buildFavouriteContact()),
                 // _buildContactSection(),
                 _buildContactList()
+
                 // _buildFavouriteContact(),
                 // _buildContactList(),
               ],
@@ -353,64 +440,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         ));
   }
 
-  Widget _buildFavoriteContactsList() {
-    if (_favoriteContacts.isEmpty) {
-      return Center(
-        child: Text('No favorite contacts'),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      itemCount: _favoriteContacts.length,
-      itemBuilder: (context, index) {
-        final contact = _favoriteContacts[index];
-        return ListTile(
-          trailing: Container(
-              padding: EdgeInsets.only(right: 25),
-              child: Icon(Icons.favorite, size: 20.0, color: Colors.red)),
-          title: Text(contact.firstname
-              .toString()), // Adjust according to your ContactListModel
-          subtitle: Text(contact.lastname
-              .toString()), // Adjust according to your ContactListModel
-        );
-      },
-    );
-  }
-
   /// contact section
-  ///
-  Widget _buildContactSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
-          child: Text(
-            "Favorite",
-            style: textBold.copyWith(color: AppColor.black, fontSize: 15.spMin),
-          ),
-        ),
-        Divider(
-          color: AppColor.black,
-          height: 0,
-        ),
-        Flexible(child: _buildFavoriteContactsList()),
-        Divider(
-          color: AppColor.black,
-          height: 0,
-        ),
-        Padding(
-          padding: EdgeInsets.only(left: 15.w, top: 15.h),
-          child: Text(
-            "Contacts",
-            style: textBold.copyWith(color: AppColor.black, fontSize: 16.spMin),
-          ),
-        ),
-      ],
-    );
-  }
 
   /// contact list view
   Widget _buildFavouriteContact() {
@@ -451,7 +481,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   Divider(),
                 ],
               ).wrapPaddingSymmetric(horizontal: 15.w);
-              ;
             },
           );
   }
