@@ -43,6 +43,9 @@ abstract class _AuthStoreBase with Store {
   @observable
   Set<ContactListModel> selectedContacts = {};
 
+  @observable
+  Map<String, List<ContactListModel>> groupedContacts;
+
   final GoogleSignIn googleSignIn = GoogleSignIn();
 
   _AuthStoreBase();
@@ -51,7 +54,6 @@ abstract class _AuthStoreBase with Store {
   bool isChecked(ContactListModel contact) {
     print('Current selectedContacts: $selectedContacts');
     if (selectedContacts.contains(contact)) {
-      
       return selectedContacts.remove(contact);
     } else {
       return selectedContacts.add(contact);

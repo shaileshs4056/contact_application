@@ -41,9 +41,14 @@ class ShowContactListPage extends StatefulWidget {
   State<ShowContactListPage> createState() => _ShowContactListPageState();
 }
 
-late Map<String, List<ContactListModel>> groupedContacts;
+late Map<String, List<ContactListModel>> groupedContacts; 
 
-List<ContactListModel> _favoriteContacts = [];
+
+
+final List<ContactListModel> favoriteContacts = groupedContacts.values
+    .expand((list) => list)
+    .where((contact) => contact.isFavorite == true)
+    .toList();
 
 class _ShowContactListPageState extends State<ShowContactListPage> {
   late TextEditingController searchController;
@@ -53,6 +58,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     final contacts = appDB.contacts;
     setState(() {
       groupedContacts = groupContactsByLetter(contacts);
+     favoriteContacts;
     });
   }
 
@@ -146,64 +152,66 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     });
   }
 
-  Future<void> _addfavorite() async {
-    final contacts = appDB.contacts;
+  // Future<void> _addfavorite() async {
+  //   final contacts = appDB.contacts;
 
-    // Add selected contacts to the _favoriteContacts list
-    _favoriteContacts.addAll(authStore.selectedContacts
-        .where((contact) => !_favoriteContacts.contains(contact)));
+  //   // Add selected contacts to the _favoriteContacts list
+  //   _favoriteContacts.addAll(authStore.selectedContacts
+  //       .where((contact) => !_favoriteContacts.contains(contact)));
 
-    // Save the updated contacts list to the database
-    await appDB.setValue("contacts", contacts);
-    authStore.selectedContacts.clear();
-    _value = false;
-    setState(() {
-      // Clear the selected contacts and refresh the grouped contacts
-      authStore.selectedFavorite.clear();
+  //   // Save the updated contacts list to the database
+  //   await appDB.setValue("contacts", contacts);
+  //   authStore.selectedContacts.clear();
+  //   _value = false;
+  //   setState(() {
+  //     // Clear the selected contacts and refresh the grouped contacts
+  //     authStore.selectedFavorite.clear();
 
-      groupedContacts = groupContactsByLetter(contacts);
-    });
-  }
-
-  // Future<List<ContactListModel>> getFavoriteContacts() async {
-  //   final contacts = appDB.favorites;
-  //   return contacts;
+  //     groupedContacts = groupContactsByLetter(contacts);
+  //   });
   // }
 
-  Future<void> _loadFavoriteContacts() async {
-    final contacts = await getFavoriteContacts();
-    setState(() {
-      _favoriteContacts = contacts;
-    });
-
-    print(
-        'Favorite Contacts: ${_favoriteContacts.isNotEmpty ? _favoriteContacts[0].firstname : 'No favorites'}');
-    for (var contact in _favoriteContacts) {
-      print(
-          'Name: ${contact.firstname} ${contact.lastname}, ID: ${contact.id}');
-    }
-  }
-
   Future<List<ContactListModel>> getFavoriteContacts() async {
-    final contacts = appDB.favorites;
-    return contacts;
+    _loadContacts();
+    return favoriteContacts;
   }
 
- Future<void> _toggleSelectedFavorites() async {
-  final selectedContacts = authStore.selectedContacts.toList();
-  
-  // Toggle the isFavorite status in the database
-  await appDB.toggleFavorites(selectedContacts);
-  
-  // Clear the selection in the state management store
-  authStore.selectedFavorite.clear();
-  
-  // Reload the favorite contacts to refresh the UI
-  // await _loadFavoriteContacts();
-  
-  setState(() {}); // Trigger a UI update
-}
+  void onFavoriteToggle() async {
+    // Convert the selected contacts to a list
+    final selectedContactsList = authStore.selectedContacts.toList();
 
+    if (selectedContactsList.isEmpty) {
+      print("No contacts selected.");
+      return; // Exit if no contacts are selected
+    }
+
+    print("Selected Contacts Before Toggle:");
+    for (var contact in selectedContactsList) {
+      print(
+          "${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
+    }
+
+    // Call the method to toggle the favorite status in the database
+    await appDB.toggleFavorites(selectedContactsList);
+    setState(() {});
+    // Print the status after toggling
+    print("Selected Contacts After Toggle:");
+    for (var contact in selectedContactsList) {
+      print(
+          "${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
+    }
+
+    // Clear the selection after updating
+    authStore.selectedContacts.clear();
+    _loadContacts();
+    getFavoriteContacts();
+    _loadContacts();
+    // Reload the contacts or update the UI
+    setState(() {
+      // You can add any additional UI updates here
+      print("UI updated");
+    });
+  }
 
   Future<bool> _showExitConfirmationDialog() async {
     return showDialog<bool>(
@@ -243,7 +251,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
   @override
   Widget build(BuildContext context) {
-    print(_favoriteContacts.length);
     return Scaffold(
         backgroundColor: AppColor.white,
         appBar: AppBar(
@@ -308,9 +315,9 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   visible: _value,
                   child: InkWell(
                     onTap: () {
-                      _toggleSelectedFavorites();
-                      // _addfavorite();
-                      ;
+                      onFavoriteToggle()
+                          // _addfavorite();
+                          ;
                     },
                     child: Icon(
                       Icons.favorite,
@@ -395,27 +402,41 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   color: AppColor.black,
                   height: 0,
                 ),
-                Wrap(
-                    children: List.generate(
-                  _favoriteContacts.length,
-                  (index) {
-                    final data = _favoriteContacts[index];
-                    final image = data.image;
-                    final name = data.firstname;
-                    final isFav = data.isFavorite;
+                // Flatten and filter the contacts to get only the favorites
 
-                    return Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundImage: FileImage(File(image!)),
-                        ).wrapPaddingBottom(5.h),
-                        Text(name!),
-                        Text(isFav.toString())
-                      ],
-                    ).wrapPaddingSymmetric(horizontal: 15.w, vertical: 15.h);
-                  },
-                )),
+                Wrap(
+                  children: List.generate(
+                    favoriteContacts.length,
+                    (index) {
+                      final data = favoriteContacts[index];
+                      final name = data.firstname;
+                      final lastName = data.lastname;
+                      final image = data.image;
+                      final isFav = data.isFavorite;
+
+                      return favoriteContacts.isEmpty
+                          ? SizedBox.shrink()
+                          : Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 40,
+                                  backgroundImage: image != null &&
+                                          image.isNotEmpty
+                                      ? FileImage(File(image))
+                                      : null, // Handle null or empty image paths
+                                ).wrapPaddingBottom(5.h),
+                                Text(name ??
+                                    'No Name'), // Provide a default value if `name` is null
+                                Text(isFav.toString())
+                              ],
+                            ).wrapPaddingSymmetric(
+                              horizontal: 15.w,
+                              vertical: 15.h,
+                            );
+                    },
+                  ),
+                ),
+
                 Divider(
                   color: AppColor.black,
                   height: 0,
@@ -442,49 +463,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
   /// contact section
 
-  /// contact list view
-  Widget _buildFavouriteContact() {
-    return _favoriteContacts.isEmpty
-        ? SizedBox.shrink()
-        : ListView.builder(
-            itemCount: _favoriteContacts.length,
-            shrinkWrap: true,
-            itemBuilder: (context, index) {
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Image.file(
-                          File(_favoriteContacts[index].image!),
-                          height: 50,
-                          width: 50,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        "${_favoriteContacts[index].firstname} ",
-                        style: textMedium.copyWith(color: AppColor.grey),
-                      ),
-                      Text(
-                        "${_favoriteContacts[index].lastname!} ",
-                        style: textMedium,
-                      ),
-                      Text(
-                        "${_favoriteContacts[index].isFavorite!}",
-                        style: textMedium,
-                      ),
-                    ],
-                  ),
-                  Divider(),
-                ],
-              ).wrapPaddingSymmetric(horizontal: 15.w);
-            },
-          );
-  }
-
   Widget _buildContactList() {
     return Observer(builder: (_) {
       return ListView.builder(
@@ -493,7 +471,9 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         itemCount: groupedContacts.length,
         itemBuilder: (context, index) {
           final letter = groupedContacts.keys.elementAt(index);
+          print(letter);
           final contactList = groupedContacts[letter]!;
+          print(contactList.length);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

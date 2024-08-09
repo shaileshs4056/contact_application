@@ -94,22 +94,38 @@ class AppDB {
     return favorites.cast<ContactListModel>().where((c) => c.isFavorite!).toList();
   }
 
+
 Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
+  // Retrieve the current contacts from the box
   final contacts = this.contacts;
-  
+
+  print("Toggling favorite status for selected contacts...");
+
   for (var selectedContact in selectedContacts) {
     final index = contacts.indexWhere((c) => c.id == selectedContact.id);
     if (index != -1) {
-      // Directly toggle the isFavorite status
-      contacts[index] = contacts[index].copyWith(
-        isFavorite: !(contacts[index].isFavorite ?? false),
+      final currentContact = contacts[index];
+      final updatedContact = currentContact.copyWith(
+        isFavorite: !(currentContact.isFavorite ?? false),
       );
+
+      // Update the contact in the list
+      contacts[index] = updatedContact;
+
+      print("Updated Contact:");
+      print("${updatedContact.firstname} ${updatedContact.lastname}: isFavorite = ${updatedContact.isFavorite}");
+    } else {
+      print("Contact with id ${selectedContact.id} not found.");
     }
   }
-  
+
   // Update the database with the modified contacts list
   await setValue("contacts", contacts);
+  print("All changes have been saved to the database.");
 }
+
+
+
 
 
   Future<void> updateContactAtIndex(

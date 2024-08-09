@@ -27,7 +27,7 @@ class ContactListModel extends HiveObject {
     required this.lastname,
     required this.company,
     required this.image,
-    this.isFavorite = true, // Ensure a default value
+    this.isFavorite = false, // Ensure a default value
   });
 
   ContactListModel copyWith({
