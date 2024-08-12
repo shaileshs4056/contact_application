@@ -73,7 +73,7 @@ class AppDB {
 
   List<ContactListModel> get contacts {
     final contacts = _box.get("contacts", defaultValue: <ContactListModel>[])
-        as List<dynamic>;
+    as List<dynamic>;
     return contacts.cast<ContactListModel>();
   }
 
@@ -95,34 +95,30 @@ class AppDB {
   }
 
 
-Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
-  // Retrieve the current contacts from the box
-  final contacts = this.contacts;
+  Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
+    // Retrieve the current contacts from the box
+    final contacts = this.contacts;
 
-  print("Toggling favorite status for selected contacts...");
+    print("Toggling favorite status for selected contacts...");
 
-  for (var selectedContact in selectedContacts) {
-    final index = contacts.indexWhere((c) => c.id == selectedContact.id);
-    if (index != -1) {
-      final currentContact = contacts[index];
-      final updatedContact = currentContact.copyWith(
-        isFavorite: !(currentContact.isFavorite ?? false),
-      );
+    for (var selectedContact in selectedContacts) {
+      final index = contacts.indexWhere((c) => c.id == selectedContact.id);
+      if (index != -1) {
+        final currentContact = contacts[index];
+        currentContact.isFavorite!=true;
 
-      // Update the contact in the list
-      contacts[index] = updatedContact;
+        // Update the contact in the list
 
-      print("Updated Contact:");
-      print("${updatedContact.firstname} ${updatedContact.lastname}: isFavorite = ${updatedContact.isFavorite}");
-    } else {
-      print("Contact with id ${selectedContact.id} not found.");
+        print("Updated Contact:");
+      } else {
+        print("Contact with id ${selectedContact.id} not found.");
+      }
     }
-  }
 
-  // Update the database with the modified contacts list
-  await setValue("contacts", contacts);
-  print("All changes have been saved to the database.");
-}
+    // Update the database with the modified contacts list
+    await setValue("contacts", contacts);
+    print("All changes have been saved to the database.");
+  }
 
 
 

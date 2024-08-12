@@ -12,28 +12,7 @@ import 'package:contact_number_demo/widget/app_text_filed.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-Map<String, List<ContactListModel>> groupContactsByLetter(
-    List<ContactListModel> contacts) {
-  final Map<String, List<ContactListModel>> groupedContacts = {};
 
-  for (var contact in contacts) {
-    final firstLetter = contact.firstname!.isNotEmpty
-        ? contact.firstname![0].toUpperCase()
-        : '#';
-    if (!groupedContacts.containsKey(firstLetter)) {
-      groupedContacts[firstLetter] = [];
-    }
-    groupedContacts[firstLetter]!.add(contact);
-  }
-
-  // Optionally, sort the map by key (A to Z)
-  final sortedKeys = groupedContacts.keys.toList()..sort();
-  final sortedGroupedContacts = {
-    for (var key in sortedKeys) key: groupedContacts[key]!
-  };
-
-  return sortedGroupedContacts;
-}
 
 @RoutePage()
 class ShowContactListPage extends StatefulWidget {
@@ -41,11 +20,8 @@ class ShowContactListPage extends StatefulWidget {
   State<ShowContactListPage> createState() => _ShowContactListPageState();
 }
 
-late Map<String, List<ContactListModel>> groupedContacts; 
 
-
-
-final List<ContactListModel> favoriteContacts = groupedContacts.values
+final List<ContactListModel> favoriteContacts = authStore.groupedContacts.values
     .expand((list) => list)
     .where((contact) => contact.isFavorite == true)
     .toList();
@@ -56,10 +32,8 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
   Future<void> _loadContacts() async {
     final contacts = appDB.contacts;
-    setState(() {
-      groupedContacts = groupContactsByLetter(contacts);
-     favoriteContacts;
-    });
+      authStore.groupedContacts = authStore.groupContactsByLetter(contacts);
+
   }
 
   @override
@@ -81,7 +55,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     setState(() {
       _searchResult.clear();
       if (text == null || text.isEmpty) {
-        groupedContacts = groupContactsByLetter(appDB.contacts);
+        authStore.groupedContacts = authStore.groupContactsByLetter(appDB.contacts);
         return;
       }
 
@@ -92,7 +66,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         }
       });
 
-      groupedContacts = groupContactsByLetter(_searchResult);
+      authStore.groupedContacts = authStore.groupContactsByLetter(_searchResult);
     });
   }
 
@@ -145,40 +119,16 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         );
       },
     );
-    setState(() {
-      authStore.selectedFavorite.clear();
-      _value = false;
-      groupedContacts = groupContactsByLetter(contacts);
-    });
+
+    authStore.groupedContacts = authStore.groupContactsByLetter(contacts);
+
   }
 
-  // Future<void> _addfavorite() async {
-  //   final contacts = appDB.contacts;
 
-  //   // Add selected contacts to the _favoriteContacts list
-  //   _favoriteContacts.addAll(authStore.selectedContacts
-  //       .where((contact) => !_favoriteContacts.contains(contact)));
-
-  //   // Save the updated contacts list to the database
-  //   await appDB.setValue("contacts", contacts);
-  //   authStore.selectedContacts.clear();
-  //   _value = false;
-  //   setState(() {
-  //     // Clear the selected contacts and refresh the grouped contacts
-  //     authStore.selectedFavorite.clear();
-
-  //     groupedContacts = groupContactsByLetter(contacts);
-  //   });
-  // }
-
-  Future<List<ContactListModel>> getFavoriteContacts() async {
-    _loadContacts();
-    return favoriteContacts;
-  }
 
   void onFavoriteToggle() async {
     // Convert the selected contacts to a list
-    final selectedContactsList = authStore.selectedContacts.toList();
+    final selectedContactsList = authStore.selectedContacts;
 
     if (selectedContactsList.isEmpty) {
       print("No contacts selected.");
@@ -203,9 +153,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
     // Clear the selection after updating
     authStore.selectedContacts.clear();
-    _loadContacts();
-    getFavoriteContacts();
-    _loadContacts();
     // Reload the contacts or update the UI
     setState(() {
       // You can add any additional UI updates here
@@ -251,6 +198,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
   @override
   Widget build(BuildContext context) {
+    _loadContacts();
     return Scaffold(
         backgroundColor: AppColor.white,
         appBar: AppBar(
@@ -316,7 +264,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                   child: InkWell(
                     onTap: () {
                       onFavoriteToggle()
-                          // _addfavorite();
+                      // _addfavorite();
                           ;
                     },
                     child: Icon(
@@ -327,7 +275,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 ),
                 InkWell(
                   onTap: () {
-                    appRouter.replaceAll([AddContactNumberRoute()]);
+                    appRouter.push(AddContactNumberRoute());
                   },
                   child: Icon(
                     Icons.add,
@@ -391,7 +339,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 20.verticalSpace,
                 Padding(
                   padding:
-                      EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
+                  EdgeInsets.symmetric(horizontal: 15.w, vertical: 15.h),
                   child: Text(
                     "Favorite",
                     style: textBold.copyWith(
@@ -407,7 +355,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 Wrap(
                   children: List.generate(
                     favoriteContacts.length,
-                    (index) {
+                        (index) {
                       final data = favoriteContacts[index];
                       final name = data.firstname;
                       final lastName = data.lastname;
@@ -417,22 +365,22 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                       return favoriteContacts.isEmpty
                           ? SizedBox.shrink()
                           : Column(
-                              children: [
-                                CircleAvatar(
-                                  radius: 40,
-                                  backgroundImage: image != null &&
-                                          image.isNotEmpty
-                                      ? FileImage(File(image))
-                                      : null, // Handle null or empty image paths
-                                ).wrapPaddingBottom(5.h),
-                                Text(name ??
-                                    'No Name'), // Provide a default value if `name` is null
-                                Text(isFav.toString())
-                              ],
-                            ).wrapPaddingSymmetric(
-                              horizontal: 15.w,
-                              vertical: 15.h,
-                            );
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundImage: image != null &&
+                                image.isNotEmpty
+                                ? FileImage(File(image))
+                                : null, // Handle null or empty image paths
+                          ).wrapPaddingBottom(5.h),
+                          Text(name ??
+                              'No Name'), // Provide a default value if `name` is null
+                          Text(isFav.toString())
+                        ],
+                      ).wrapPaddingSymmetric(
+                        horizontal: 15.w,
+                        vertical: 15.h,
+                      );
                     },
                   ),
                 ),
@@ -468,11 +416,11 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
       return ListView.builder(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),
-        itemCount: groupedContacts.length,
+        itemCount: authStore.groupedContacts.length,
         itemBuilder: (context, index) {
-          final letter = groupedContacts.keys.elementAt(index);
+          final letter = authStore.groupedContacts.keys.elementAt(index);
           print(letter);
-          final contactList = groupedContacts[letter]!;
+          final contactList = authStore.groupedContacts[letter]!;
           print(contactList.length);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,7 +436,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
               // Display the contacts for this letter
               ...contactList.map((contact) {
                 bool isSelected = _value;
-                bool _isfavorite = authStore.selectedFavorite.contains(contact);
 
                 return GestureDetector(
                   onLongPress: () {
@@ -522,25 +469,25 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                           Text(contact.lastname!, style: textMedium),
                           Spacer(),
                           if (isSelected)
-                            // InkWell(
-                            //   onTap: () {
-                            //     isfavorite(contact);
-                            //     _favoriteContacts.add(contact);
-                            //     setState(() {});
-                            //   },
-                            //   child: Container(
-                            //     child: _isfavorite
-                            //         ? Icon(Icons.favorite,
-                            //             size: 20.0, color: Colors.red)
-                            //         : Icon(Icons.favorite,
-                            //             size: 20.0, color: Colors.grey),
-                            //   ),
-                            // ),
+                          // InkWell(
+                          //   onTap: () {
+                          //     isfavorite(contact);
+                          //     _favoriteContacts.add(contact);
+                          //     setState(() {});
+                          //   },
+                          //   child: Container(
+                          //     child: _isfavorite
+                          //         ? Icon(Icons.favorite,
+                          //             size: 20.0, color: Colors.red)
+                          //         : Icon(Icons.favorite,
+                          //             size: 20.0, color: Colors.grey),
+                          //   ),
+                          // ),
                             SizedBox(width: 10),
                           if (isSelected)
                             Observer(builder: (_) {
                               var isChecked =
-                                  authStore.selectedContacts.contains(contact);
+                              authStore.selectedContacts.contains(contact);
 
                               return GestureDetector(
                                 onTap: () {
@@ -562,7 +509,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                                   ),
                                   child: isChecked
                                       ? Icon(Icons.check,
-                                          size: 15.0, color: Colors.white)
+                                      size: 15.0, color: Colors.white)
                                       : null,
                                 ),
                               );

@@ -5,6 +5,7 @@ import 'package:contact_number_demo/core/db/app_db.dart';
 
 import 'package:contact_number_demo/generated/assets.dart';
 import 'package:contact_number_demo/router/app_router.dart';
+import 'package:contact_number_demo/ui/auth/store/auth_store.dart';
 import 'package:contact_number_demo/ui/home/show_contact_list.dart';
 import 'package:contact_number_demo/util/media_picker.dart';
 import 'package:contact_number_demo/values/export.dart';
@@ -26,7 +27,7 @@ class AddContactNumberPage extends StatefulWidget {
   State<AddContactNumberPage> createState() => _AddContactNumberPageState();
 }
 
-List<ContactListModel> contactList = [];
+
 
 enum FilesType { image, video, documents, audio }
 
@@ -110,18 +111,26 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
         centerTitle: true,
         actions: [
           InkWell(
-            onTap: () async {
-              if (_formKey.currentState?.validate() ?? false) {
+            onTap: ()  {
+              print("ok");
+              if (_formKey.currentState!.validate()) {
                 final newContact = ContactListModel(
-                  id: groupedContacts.length,
+                  id: authStore.groupedContacts.length,
                   firstname: firstNameController.text,
                   lastname: lastNameController.text,
                   company: CompanyController.text,
                   image: _image?.path ?? '',
                 );
-                await appDB.addContact(newContact);
+                print("okxx");
+                 appDB.addContact(newContact);
                 clearForm();
-                appRouter.push(ShowContactListRoute());
+                appRouter.maybePop();
+                // appRouter.popForced();
+
+
+              }
+              else{
+                print("abcdefg");
               }
             },
             child: Text(

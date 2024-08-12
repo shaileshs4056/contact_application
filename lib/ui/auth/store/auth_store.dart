@@ -37,14 +37,12 @@ abstract class _AuthStoreBase with Store {
   @observable
   String? errorMessage;
 
-  @observable
-  Set<ContactListModel> selectedFavorite = {};
 
   @observable
-  Set<ContactListModel> selectedContacts = {};
+  ObservableList<ContactListModel> selectedContacts = ObservableList<ContactListModel>();
 
   @observable
-  Map<String, List<ContactListModel>> groupedContacts;
+   Map<String, List<ContactListModel>> groupedContacts={};
 
   final GoogleSignIn googleSignIn = GoogleSignIn();
 
@@ -54,10 +52,44 @@ abstract class _AuthStoreBase with Store {
   bool isChecked(ContactListModel contact) {
     print('Current selectedContacts: $selectedContacts');
     if (selectedContacts.contains(contact)) {
-      return selectedContacts.remove(contact);
+      return true;
     } else {
-      return selectedContacts.add(contact);
+      return false;
     }
+  }
+
+  @action
+  Map<String, List<ContactListModel>> groupContactsByLetter(
+      List<ContactListModel> contacts) {
+    final Map<String, List<ContactListModel>> groupedContacts = {};
+
+    for (var contact in contacts) {
+      final firstLetter = contact.firstname!.isNotEmpty
+          ? contact.firstname![0].toUpperCase()
+          : '#';
+      if (!groupedContacts.containsKey(firstLetter)) {
+        groupedContacts[firstLetter] = [];
+      }
+      groupedContacts[firstLetter]!.add(contact);
+    }
+
+    // Optionally, sort the map by key (A to Z)
+    final sortedKeys = groupedContacts.keys.toList()..sort();
+    final sortedGroupedContacts = {
+      for (var key in sortedKeys) key: groupedContacts[key]!
+    };
+
+    return sortedGroupedContacts;
+  }
+
+  ///groupContactsByLetter method
+
+
+  ///load contact method
+  @action
+  Future<void> loadContacts() async {
+    final contacts = appDB.contacts;
+    groupedContacts = groupContactsByLetter(contacts);
   }
 
   @action
@@ -143,7 +175,7 @@ abstract class _AuthStoreBase with Store {
         'client_id': 'com.example.android',
         'response_mode': 'form_post',
         'redirect_uri':
-            'https://first-ossified-foe.glitch.me/callbacks/sign_in_with_apple',
+        'https://first-ossified-foe.glitch.me/callbacks/sign_in_with_apple',
         'scope': 'email name',
         'state': clientState,
       });
@@ -157,7 +189,7 @@ abstract class _AuthStoreBase with Store {
         accessToken: body['code'],
       );
       var data =
-          await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+      await FirebaseAuth.instance.signInWithCredential(oauthCredential);
 
       return null;
     }
@@ -247,19 +279,19 @@ abstract class _AuthStoreBase with Store {
     final FirebaseAuth _auth = FirebaseAuth.instance;
     try {
       final GoogleSignInAccount? googleSignInAccount =
-          await googleSignIn.signIn();
+      await googleSignIn.signIn();
       if (googleSignInAccount == null) {
         return null;
       }
       final GoogleSignInAuthentication googleSignInAuthentication =
-          await googleSignInAccount.authentication;
+      await googleSignInAccount.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleSignInAuthentication.accessToken,
         idToken: googleSignInAuthentication.idToken,
       );
 
       final UserCredential authResult =
-          await _auth.signInWithCredential(credential);
+      await _auth.signInWithCredential(credential);
       final User user = authResult.user!;
 
       if (user != null) {
