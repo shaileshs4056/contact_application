@@ -96,31 +96,27 @@ class AppDB {
 
 
   Future<void> toggleFavorites(List<ContactListModel> selectedContacts) async {
-    // Retrieve the current contacts from the box
-    final contacts = this.contacts;
+    final contactsList = contacts; // Retrieve the current contacts list
 
-    print("Toggling favorite status for selected contacts...");
+    print("Setting favorite status to true for selected contacts...");
 
     for (var selectedContact in selectedContacts) {
-      final index = contacts.indexWhere((c) => c.id == selectedContact.id);
+      final index = contactsList.indexWhere((c) => c.id == selectedContact.id);
       if (index != -1) {
-        final currentContact = contacts[index];
-        currentContact.isFavorite!=true;
+        final updatedContact = contactsList[index].copyWith(isFavorite: true);
 
         // Update the contact in the list
-
-        print("Updated Contact:");
+        contactsList[index] = updatedContact;
       } else {
         print("Contact with id ${selectedContact.id} not found.");
       }
     }
 
-    // Update the database with the modified contacts list
-    await setValue("contacts", contacts);
-    print("All changes have been saved to the database.");
+    // Save the updated contacts list back to the Hive box
+    await _box.put("contacts", contactsList);
+
+    print("All changes have been saved to the Hive database.");
   }
-
-
 
 
 

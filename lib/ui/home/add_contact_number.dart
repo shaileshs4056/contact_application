@@ -121,7 +121,6 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
                   company: CompanyController.text,
                   image: _image?.path ?? '',
                 );
-                print("okxx");
                  appDB.addContact(newContact);
                 clearForm();
                 appRouter.maybePop();
@@ -130,7 +129,7 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
 
               }
               else{
-                print("abcdefg");
+                Text("Something is Wrong",style: textBold.copyWith(color: AppColor.red),).wrapCenter( );
               }
             },
             child: Text(

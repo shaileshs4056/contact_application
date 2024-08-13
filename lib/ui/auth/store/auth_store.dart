@@ -37,9 +37,11 @@ abstract class _AuthStoreBase with Store {
   @observable
   String? errorMessage;
 
+  @observable
+  Set<ContactListModel> selectedFavorite = {};
 
   @observable
-  ObservableList<ContactListModel> selectedContacts = ObservableList<ContactListModel>();
+  Set<ContactListModel> selectedContacts = {};
 
   @observable
    Map<String, List<ContactListModel>> groupedContacts={};
@@ -52,12 +54,21 @@ abstract class _AuthStoreBase with Store {
   bool isChecked(ContactListModel contact) {
     print('Current selectedContacts: $selectedContacts');
     if (selectedContacts.contains(contact)) {
-      return true;
+      return selectedContacts.remove(contact);
     } else {
-      return false;
+      return selectedContacts.add(contact);
     }
   }
 
+  @computed
+  List<ContactListModel> get favoriteContacts {
+    return groupedContacts.values
+        .expand((list) => list)
+        .where((contact) => contact.isFavorite == true)
+        .toList();
+  }
+
+  ///groupContactsByLetter method
   @action
   Map<String, List<ContactListModel>> groupContactsByLetter(
       List<ContactListModel> contacts) {
@@ -81,9 +92,6 @@ abstract class _AuthStoreBase with Store {
 
     return sortedGroupedContacts;
   }
-
-  ///groupContactsByLetter method
-
 
   ///load contact method
   @action
@@ -140,7 +148,7 @@ abstract class _AuthStoreBase with Store {
           AppleIDAuthorizationScopes.fullName,
         ],
         webAuthenticationOptions: WebAuthenticationOptions(
-            clientId: 'com.whotry.android',
+            clientId: 'com.who try.android',
             redirectUri: Uri.parse(
               'https://first-ossified-foe.glitch.me/callbacks/sign_in_with_apple',
             )),
@@ -294,20 +302,16 @@ abstract class _AuthStoreBase with Store {
       await _auth.signInWithCredential(credential);
       final User user = authResult.user!;
 
-      if (user != null) {
-        assert(!user.isAnonymous);
+      assert(!user.isAnonymous);
 
-        final User currentUser = _auth.currentUser!;
-        assert(user.uid == currentUser.uid);
+      final User currentUser = _auth.currentUser!;
+      assert(user.uid == currentUser.uid);
 
-        debugPrint('signInWithGoogle succeeded: $user');
-        await googleSignIn.signOut();
+      debugPrint('signInWithGoogle succeeded: $user');
+      await googleSignIn.signOut();
 
-        return user;
-      } else {
-        return null;
-      }
-    } catch (error) {
+      return user;
+        } catch (error) {
       debugPrint("G-SignIn error: $error");
       errorMessage = error.toString();
       return null;

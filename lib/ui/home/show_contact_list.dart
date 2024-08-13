@@ -12,7 +12,28 @@ import 'package:contact_number_demo/widget/app_text_filed.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+Map<String, List<ContactListModel>> groupContactsByLetter(
+    List<ContactListModel> contacts) {
+  final Map<String, List<ContactListModel>> groupedContacts = {};
 
+  for (var contact in contacts) {
+    final firstLetter = contact.firstname!.isNotEmpty
+        ? contact.firstname![0].toUpperCase()
+        : '#';
+    if (!groupedContacts.containsKey(firstLetter)) {
+      groupedContacts[firstLetter] = [];
+    }
+    groupedContacts[firstLetter]!.add(contact);
+  }
+
+  // Optionally, sort the map by key (A to Z)
+  final sortedKeys = groupedContacts.keys.toList()..sort();
+  final sortedGroupedContacts = {
+    for (var key in sortedKeys) key: groupedContacts[key]!
+  };
+
+  return sortedGroupedContacts;
+}
 
 @RoutePage()
 class ShowContactListPage extends StatefulWidget {
@@ -21,27 +42,19 @@ class ShowContactListPage extends StatefulWidget {
 }
 
 
-final List<ContactListModel> favoriteContacts = authStore.groupedContacts.values
-    .expand((list) => list)
-    .where((contact) => contact.isFavorite == true)
-    .toList();
+
 
 class _ShowContactListPageState extends State<ShowContactListPage> {
   late TextEditingController searchController;
   late List<ContactListModel> _searchResult = [];
 
-  Future<void> _loadContacts() async {
-    final contacts = appDB.contacts;
-      authStore.groupedContacts = authStore.groupContactsByLetter(contacts);
 
-  }
 
   @override
   void initState() {
     searchController = TextEditingController();
-
     // Sync scroll controller 1 with controller 2
-    _loadContacts();
+    authStore.loadContacts();
     super.initState();
   }
 
@@ -55,7 +68,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     setState(() {
       _searchResult.clear();
       if (text == null || text.isEmpty) {
-        authStore.groupedContacts = authStore.groupContactsByLetter(appDB.contacts);
+        authStore.groupedContacts = groupContactsByLetter(appDB.contacts);
         return;
       }
 
@@ -66,7 +79,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         }
       });
 
-      authStore.groupedContacts = authStore.groupContactsByLetter(_searchResult);
+      authStore.groupedContacts = groupContactsByLetter(_searchResult);
     });
   }
 
@@ -75,6 +88,20 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
       _value = !ischeck;
     });
   }
+  bool isChecked(ContactListModel contact) {
+    setState(() {
+    });
+    print('Current selectedContacts: $authStore.selectedContacts');
+    if (authStore.selectedContacts.contains(contact)) {
+      return authStore.selectedContacts.remove(contact);
+    } else {
+      return authStore.selectedContacts.add(contact);
+    }
+    setState(() {
+
+    });
+  }
+
 
   void selectAll() {
     setState(() {
@@ -119,16 +146,36 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         );
       },
     );
-
-    authStore.groupedContacts = authStore.groupContactsByLetter(contacts);
-
+    setState(() {
+      authStore.selectedFavorite.clear();
+      _value = false;
+      authStore.groupedContacts = groupContactsByLetter(contacts);
+    });
   }
 
+  // Future<void> _addfavorite() async {
+  //   final contacts = appDB.contacts;
+
+  //   // Add selected contacts to the _favoriteContacts list
+  //   _favoriteContacts.addAll(authStore.selectedContacts
+  //       .where((contact) => !_favoriteContacts.contains(contact)));
+
+  //   // Save the updated contacts list to the database
+  //   await appDB.setValue("contacts", contacts);
+  //   authStore.selectedContacts.clear();
+  //   _value = false;
+  //   setState(() {
+  //     // Clear the selected contacts and refresh the grouped contacts
+  //     authStore.selectedFavorite.clear();
+
+  //     groupedContacts = groupContactsByLetter(contacts);
+  //   });
+  // }
 
 
   void onFavoriteToggle() async {
     // Convert the selected contacts to a list
-    final selectedContactsList = authStore.selectedContacts;
+    final selectedContactsList = authStore.selectedContacts.toList();
 
     if (selectedContactsList.isEmpty) {
       print("No contacts selected.");
@@ -137,27 +184,28 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
     print("Selected Contacts Before Toggle:");
     for (var contact in selectedContactsList) {
+      print(contact.id);
       print(
           "${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
     }
 
     // Call the method to toggle the favorite status in the database
     await appDB.toggleFavorites(selectedContactsList);
-    setState(() {});
     // Print the status after toggling
     print("Selected Contacts After Toggle:");
     for (var contact in selectedContactsList) {
       print(
           "${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
     }
+    authStore.loadContacts();
 
     // Clear the selection after updating
     authStore.selectedContacts.clear();
-    // Reload the contacts or update the UI
+    authStore.loadContacts();
     setState(() {
-      // You can add any additional UI updates here
-      print("UI updated");
+
     });
+      print("UI updated");
   }
 
   Future<bool> _showExitConfirmationDialog() async {
@@ -198,7 +246,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
 
   @override
   Widget build(BuildContext context) {
-    _loadContacts();
     return Scaffold(
         backgroundColor: AppColor.white,
         appBar: AppBar(
@@ -275,7 +322,10 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 ),
                 InkWell(
                   onTap: () {
-                    appRouter.push(AddContactNumberRoute());
+                    appRouter.push(AddContactNumberRoute()).then((value) {
+                      return authStore.loadContacts();
+                    },);
+                    // appRouter.replaceAll([AddContactNumberRoute()]);
                   },
                   child: Icon(
                     Icons.add,
@@ -352,37 +402,41 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 ),
                 // Flatten and filter the contacts to get only the favorites
 
-                Wrap(
-                  children: List.generate(
-                    favoriteContacts.length,
-                        (index) {
-                      final data = favoriteContacts[index];
-                      final name = data.firstname;
-                      final lastName = data.lastname;
-                      final image = data.image;
-                      final isFav = data.isFavorite;
+                Observer(
+                  builder: (context) {
+                    return Wrap(
+                      children: List.generate(
+                        authStore.favoriteContacts.length,
+                            (index) {
+                          final data = authStore.favoriteContacts[index];
+                          final name = data.firstname;
+                          final lastName = data.lastname;
+                          final image = data.image;
+                          final isFav = data.isFavorite;
 
-                      return favoriteContacts.isEmpty
-                          ? SizedBox.shrink()
-                          : Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 40,
-                            backgroundImage: image != null &&
-                                image.isNotEmpty
-                                ? FileImage(File(image))
-                                : null, // Handle null or empty image paths
-                          ).wrapPaddingBottom(5.h),
-                          Text(name ??
-                              'No Name'), // Provide a default value if `name` is null
-                          Text(isFav.toString())
-                        ],
-                      ).wrapPaddingSymmetric(
-                        horizontal: 15.w,
-                        vertical: 15.h,
-                      );
-                    },
-                  ),
+                          return authStore.favoriteContacts.isEmpty
+                              ? SizedBox.shrink()
+                              : Column(
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundImage: image != null &&
+                                    image.isNotEmpty
+                                    ? FileImage(File(image))
+                                    : null, // Handle null or empty image paths
+                              ).wrapPaddingBottom(5.h),
+                              Text(name ??
+                                  'No Name'), // Provide a default value if `name` is null
+                              Text(isFav.toString())
+                            ],
+                          ).wrapPaddingSymmetric(
+                            horizontal: 15.w,
+                            vertical: 15.h,
+                          );
+                        },
+                      ),
+                    );
+                  }
                 ),
 
                 Divider(
@@ -419,9 +473,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
         itemCount: authStore.groupedContacts.length,
         itemBuilder: (context, index) {
           final letter = authStore.groupedContacts.keys.elementAt(index);
-          print(letter);
           final contactList = authStore.groupedContacts[letter]!;
-          print(contactList.length);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -436,6 +488,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
               // Display the contacts for this letter
               ...contactList.map((contact) {
                 bool isSelected = _value;
+                bool _isfavorite = authStore.selectedFavorite.contains(contact);
 
                 return GestureDetector(
                   onLongPress: () {
@@ -468,21 +521,6 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                           ),
                           Text(contact.lastname!, style: textMedium),
                           Spacer(),
-                          if (isSelected)
-                          // InkWell(
-                          //   onTap: () {
-                          //     isfavorite(contact);
-                          //     _favoriteContacts.add(contact);
-                          //     setState(() {});
-                          //   },
-                          //   child: Container(
-                          //     child: _isfavorite
-                          //         ? Icon(Icons.favorite,
-                          //             size: 20.0, color: Colors.red)
-                          //         : Icon(Icons.favorite,
-                          //             size: 20.0, color: Colors.grey),
-                          //   ),
-                          // ),
                             SizedBox(width: 10),
                           if (isSelected)
                             Observer(builder: (_) {
