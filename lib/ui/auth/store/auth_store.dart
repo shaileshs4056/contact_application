@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:contact_number_demo/data/model/contact/contact.dart';
+import 'package:contact_number_demo/router/app_router.dart';
+import 'package:contact_number_demo/values/export.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -41,10 +43,14 @@ abstract class _AuthStoreBase with Store {
   Set<ContactListModel> selectedFavorite = {};
 
   @observable
-  Set<ContactListModel> selectedContacts = {};
+  ObservableSet<ContactListModel> selectedContacts = ObservableSet<ContactListModel>();
+
 
   @observable
    Map<String, List<ContactListModel>> groupedContacts={};
+
+  @observable
+  bool value = false;
 
   final GoogleSignIn googleSignIn = GoogleSignIn();
 
@@ -54,10 +60,29 @@ abstract class _AuthStoreBase with Store {
   bool isChecked(ContactListModel contact) {
     print('Current selectedContacts: $selectedContacts');
     if (selectedContacts.contains(contact)) {
-      return selectedContacts.remove(contact);
+      selectedContacts.remove(contact);
+      return false; // Indicating that the contact was removed
     } else {
-      return selectedContacts.add(contact);
+      selectedContacts.add(contact);
+      return true; // Indicating that the contact was added
     }
+  }
+
+
+/// on long press
+  @action
+  void onLongPressContact(bool ischeck) {
+      value = !ischeck;
+  }
+  @action
+  void selectAll() {
+      if (selectedContacts.length == appDB.contacts.length) {
+        // If all contacts are already favorites, clear the selection
+        selectedContacts.clear();
+      } else {
+        // Otherwise, add all contacts to the favorites
+        selectedContacts.addAll(appDB.contacts);
+      }
   }
 
   @computed
@@ -98,6 +123,78 @@ abstract class _AuthStoreBase with Store {
   Future<void> loadContacts() async {
     final contacts = appDB.contacts;
     groupedContacts = groupContactsByLetter(contacts);
+    value= false;
+  }
+
+
+  @action
+  Future<void> toggleFavorites() async {
+    final selectedContactsList = selectedContacts.toList();
+
+    if (selectedContactsList.isEmpty) {
+      print("No contacts selected.");
+      return; // Exit if no contacts are selected
+    }
+
+    print("Selected Contacts Before Toggle:");
+    for (var contact in selectedContactsList) {
+      print(contact.id);
+      print("${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
+    }
+
+    // Call the method to toggle the favorite status in the database
+    await appDB.toggleFavorites(selectedContactsList);
+
+    // Update the selected contacts list after toggling
+    loadContacts(); // Refresh the contact list
+
+    // Clear the selection
+    selectedContacts.clear();
+
+    print("UI updated");
+  }
+
+
+  ///delete item from database
+
+  @action
+  Future<void> deleteSelectedContacts(BuildContext context) async {
+    final contacts = appDB.contacts;
+
+    showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // User must tap button to dismiss
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Exit'),
+          content: Text('Selected item delected successfully '),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context)
+                    .pop(false); // Return false if the user cancels
+              },
+            ),
+            TextButton(
+              child: Text('Delete',style: textExtraBold.copyWith(color: AppColor.red,),),
+              onPressed: () async {
+                contacts
+                    .removeWhere((contact) => authStore.selectedContacts.contains(contact));
+                await appDB.setValue("contacts", contacts);
+                authStore.selectedFavorite.clear();
+                authStore.groupedContacts = groupContactsByLetter(contacts);
+                appRouter.maybePop();// Return true if the user confirms
+                loadContacts();
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    value =false;
+
   }
 
   @action

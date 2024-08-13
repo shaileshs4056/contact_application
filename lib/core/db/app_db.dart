@@ -89,6 +89,19 @@ class AppDB {
     await setValue("contacts", contacts);
   }
 
+  Future<void> deleteContactById(int id) async {
+    final contacts = this.contacts;
+
+    // Remove the contact with the matching ID
+    contacts.removeWhere((c) => c.id == id);
+
+    // Save the updated contacts list back to the Hive box
+    await _box.put("contacts", contacts);
+
+    print('Contact with ID $id has been deleted.');
+  }
+
+
   List<ContactListModel> get favorites {
     final favorites = _box.get("favorites", defaultValue: []) as List<dynamic>;
     return favorites.cast<ContactListModel>().where((c) => c.isFavorite!).toList();

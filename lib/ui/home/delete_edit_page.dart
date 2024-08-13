@@ -5,6 +5,7 @@ import 'package:contact_number_demo/core/db/app_db.dart';
 import 'package:contact_number_demo/data/model/contact/contact.dart';
 import 'package:contact_number_demo/generated/assets.dart';
 import 'package:contact_number_demo/router/app_router.dart';
+import 'package:contact_number_demo/ui/auth/store/auth_store.dart';
 import 'package:contact_number_demo/ui/home/add_contact_number.dart';
 import 'package:contact_number_demo/util/media_picker.dart';
 import 'package:contact_number_demo/values/colors.dart';
@@ -132,15 +133,16 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
                   firstname: firstNameController.text,
                   lastname: lastNameController.text,
                   company: CompanyController.text,
-                  image: _image!.path,
+                  image: _image?.path,
                 );
 
                 // Update the contact in Hive
                 await appDB.updateContactAtIndex(index, updatedContact);
+                print("hello");
 
                 // Clear the form and navigate
                 clearForm();
-                context.router.replaceAll([ShowContactListRoute()]);
+               appRouter.maybePop();
               }
             },
             child: Text(
@@ -185,21 +187,6 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
                       style: textMedium.copyWith(color: AppColor.black),
                     ),
                   ),
-
-                  // Container(
-                  //   decoration: BoxDecoration(
-                  //     color: AppColor.white,
-                  //     borderRadius: BorderRadius.circular(20.r),
-                  //   ),
-                  //   padding:
-                  //       EdgeInsets.symmetric(horizontal: 25.w, vertical: 8.h),
-                  //   child: Text(
-                  //     "Add Photo",
-                  //     style: textBold.copyWith(
-                  //       color: AppColor.black,
-                  //     ),
-                  //   ),
-                  // )
                 ],
               ),
             ),
@@ -210,72 +197,40 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
               ),
             ),
             20.verticalSpace,
-            // buildCustomContainer(icon: Icons.add, text: "add Phone"),
-            // 30.verticalSpace,
-            // buildCustomContainer(icon: Icons.add, text: "add email"),
-            // 30.verticalSpace,
-            // buildCustomContainer(icon: Icons.add, text: "add pronounce"),
-            // 30.verticalSpace,
-            // buildCustomContainerWithTextAndIcon(
-            //     icon: Icons.arrow_forward_ios_outlined,
-            //     leadingText: "Ringtone",
-            //     trailingText: "Dedault"),
-            // 30.verticalSpace,
-            // buildCustomContainerWithTextAndIcon(
-            //     icon: Icons.arrow_forward_ios_outlined,
-            //     leadingText: "Text Tone",
-            //     trailingText: "Dedault"),
 
             AppButton(
               "Delete",
               () {
                 if (_formKey.currentState?.validate() ?? false) {
                   // Edit existing contact
-                  showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.0),
+                  showDialog<bool>(
+                    context: context,
+                    barrierDismissible: false, // User must tap button to dismiss
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text('Exit'),
+                        content: Text('you want delete this item? '),
+                        actions: <Widget>[
+                          TextButton(
+                            child: Text('Cancel'),
+                            onPressed: () {
+                              Navigator.of(context)
+                                  .pop(false); // Return false if the user cancels
+                            },
                           ),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Lottie.network(
-                                'https://assets7.lottiefiles.com/packages/lf20_fcfjwiyb.json',
-                                width: 100,
-                                height: 100,
-                                repeat: false,
-                              ),
-                              SizedBox(height: 20),
-                              Text(
-                                "Data deleted successfully",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 20),
-                            ],
+                          TextButton(
+                            child: Text('Delete',style: textExtraBold.copyWith(color: AppColor.red,),),
+                            onPressed: () async {
+                              appDB.deleteContactById(widget.id);
+                              appRouter.back();// Return true if the user confirms
+                              authStore.loadContacts();
+
+                            },
                           ),
-                          actions: [
-                            ElevatedButton(
-                              onPressed: () {
-                                appRouter.pop();
-                                // contactList.removeAt(widget.id);
-                                // appRouter.replaceAll([ShowContactListRoute()]);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                              ),
-                              child: Text('OK'),
-                            ),
-                          ],
-                        );
-                      });
+                        ],
+                      );
+                    },
+                  );
                 }
               },
               buttonColor: true,
@@ -391,6 +346,7 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
     if (pickedDocuments != null) {
       if (mounted) setState(() => count = pickedDocuments!.length);
     }
+    return null;
   }
 
   Widget buildCustomContainerWithTextAndIcon({
@@ -500,11 +456,4 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
 }
 
 // To show the dialog
-void showSuccessDialog(BuildContext context, String message) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Text("bfcjsjb");
-    },
-  );
-}
+
