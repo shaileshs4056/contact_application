@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:contact_number_demo/data/model/contact/contact.dart';
 import 'package:contact_number_demo/router/app_router.dart';
@@ -45,12 +46,17 @@ abstract class _AuthStoreBase with Store {
   @observable
   ObservableSet<ContactListModel> selectedContacts = ObservableSet<ContactListModel>();
 
-
+@observable
+List<ContactListModel> data=[];
   @observable
    Map<String, List<ContactListModel>> groupedContacts={};
 
   @observable
   bool value = false;
+
+  @observable
+  var random = 0;
+
 
   final GoogleSignIn googleSignIn = GoogleSignIn();
 
@@ -66,6 +72,12 @@ abstract class _AuthStoreBase with Store {
       selectedContacts.add(contact);
       return true; // Indicating that the contact was added
     }
+  }
+
+  @action
+  int generateUniqueId() {
+    var random = Random();
+    return random.nextInt(1000000); // Generates a random integer between 0 and 999999
   }
 
 
@@ -97,6 +109,7 @@ abstract class _AuthStoreBase with Store {
   @action
   Map<String, List<ContactListModel>> groupContactsByLetter(
       List<ContactListModel> contacts) {
+
     final Map<String, List<ContactListModel>> groupedContacts = {};
 
     for (var contact in contacts) {
@@ -118,12 +131,14 @@ abstract class _AuthStoreBase with Store {
     return sortedGroupedContacts;
   }
 
+
   ///load contact method
   @action
   Future<void> loadContacts() async {
     final contacts = appDB.contacts;
     groupedContacts = groupContactsByLetter(contacts);
     value= false;
+    selectedContacts.clear();
   }
 
 
@@ -160,18 +175,41 @@ abstract class _AuthStoreBase with Store {
   @action
   Future<void> deleteSelectedContacts(BuildContext context) async {
     final contacts = appDB.contacts;
-
+    if (selectedContacts.isEmpty) {
+      // Show an alert dialog when no contacts are selected
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('No Selection'),
+            content: Text('Please select some items.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                },
+              ),
+            ],
+          );
+        },
+      );
+      authStore.loadContacts();
+      return;
+      // Exit if no contacts are selected
+    }
     showDialog<bool>(
       context: context,
       barrierDismissible: false, // User must tap button to dismiss
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Exit'),
-          content: Text('Selected item delected successfully '),
+          content: Text('are you sure you want to delete this item '),
           actions: <Widget>[
             TextButton(
               child: Text('Cancel'),
               onPressed: () {
+                loadContacts();
                 Navigator.of(context)
                     .pop(false); // Return false if the user cancels
               },

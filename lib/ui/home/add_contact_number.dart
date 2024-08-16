@@ -112,10 +112,9 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
         actions: [
           InkWell(
             onTap: ()  {
-              print("ok");
               if (_formKey.currentState!.validate()) {
                 final newContact = ContactListModel(
-                  id: authStore.groupedContacts.length,
+                  id: appDB.contacts.length+1,
                   firstname: firstNameController.text,
                   lastname: lastNameController.text,
                   company: CompanyController.text,
@@ -175,21 +174,6 @@ class _AddContactNumberPageState extends State<AddContactNumberPage> {
                       style: textMedium.copyWith(color: AppColor.black),
                     ),
                   ),
-
-                  // Container(
-                  //   decoration: BoxDecoration(
-                  //     color: AppColor.white,
-                  //     borderRadius: BorderRadius.circular(20.r),
-                  //   ),
-                  //   padding:
-                  //       EdgeInsets.symmetric(horizontal: 25.w, vertical: 8.h),
-                  //   child: Text(
-                  //     "Add Photo",
-                  //     style: textBold.copyWith(
-                  //       color: AppColor.black,
-                  //     ),
-                  //   ),
-                  // )
                 ],
               ),
             ),

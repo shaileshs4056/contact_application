@@ -61,6 +61,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
   @override
   void dispose() {
     searchController.dispose();
+    searchController.clear();
     super.dispose();
   }
 
@@ -90,32 +91,47 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
     final selectedContactsList = authStore.selectedContacts.toList();
 
     if (selectedContactsList.isEmpty) {
-      print("No contacts selected.");
-      return; // Exit if no contacts are selected
+      // Show an alert dialog when no contacts are selected
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('No Selection'),
+            content: Text('Please select some items.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                },
+              ),
+            ],
+          );
+        },
+      );
+      authStore.loadContacts();
+      return;
+      // Exit if no contacts are selected
     }
 
     print("Selected Contacts Before Toggle:");
     for (var contact in selectedContactsList) {
-      print(contact.id);
       print(
           "${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
     }
 
     // Call the method to toggle the favorite status in the database
     await appDB.toggleFavorites(selectedContactsList);
-    // Print the status after toggling
-    print("Selected Contacts After Toggle:");
-    for (var contact in selectedContactsList) {
-      print(
-          "${contact.firstname} ${contact.lastname}: isFavorite = ${contact.isFavorite}");
-    }
-    authStore.loadContacts();
+
+    // Reload contacts after updating
+    await authStore.loadContacts();
 
     // Clear the selection after updating
     authStore.selectedContacts.clear();
     authStore.loadContacts();
     print("UI updated");
   }
+
 
   Future<bool> _showExitConfirmationDialog() async {
     return showDialog<bool>(
@@ -232,6 +248,7 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                     InkWell(
                       onTap: () {
                         appRouter.push(AddContactNumberRoute()).then((value) {
+                          searchController.clear();
                           return authStore.loadContacts();
                         },);
                         // appRouter.replaceAll([AddContactNumberRoute()]);
@@ -380,8 +397,8 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
       itemCount: authStore.groupedContacts.length,
-      itemBuilder: (context, index) {
-        final letter = authStore.groupedContacts.keys.elementAt(index);
+      itemBuilder: (context, outerIndex) {
+        final letter = authStore.groupedContacts.keys.elementAt(outerIndex);
         final contactList = authStore.groupedContacts[letter]!;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,80 +411,96 @@ class _ShowContactListPageState extends State<ShowContactListPage> {
                 style: textRegular.copyWith(color: AppColor.grey),
               ),
             ),
-            // Display the contacts for this letter
-            ...contactList.map((contact) {
 
-              return GestureDetector(
-                onLongPress: () {
-                  authStore.onLongPressContact(authStore.value);
-                  print(authStore.value);
-                },
-                onTap: () {
-          appRouter.push(DeleteEditRoute(id: contact.id!)).then((value) {
-            return authStore.loadContacts();
-          },);
-                },
-                child: Observer(
-                  builder: (context) {
-                    var isCheck = authStore.selectedContacts.contains(contact);
-                    return Column(
-                      children: [
-                        Row(
-                          children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: contact.image != null &&
-                              contact.image!.isNotEmpty
-                              ? FileImage(File(contact.image!))
-                              : null,
-                      //Handle null or empty image paths
+            // Nested ListView.builder for contacts under this letter
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: contactList.length,
+              itemBuilder: (context, innerIndex) {
+                final contact = contactList[innerIndex];
 
-                        ),
-                            SizedBox(width: 10),
-                            Text(
-                              "${contact.firstname} ",
-                              style: textMedium.copyWith(color: AppColor.grey),
-                            ),
-                            Text(contact.lastname!, style: textMedium),
-                            Spacer(),
-                            SizedBox(width: 10),
-                            if (authStore.value)
-                                 GestureDetector(
+                return GestureDetector(
+                  onLongPress: () {
+                    authStore.onLongPressContact(authStore.value);
+                  },
+                  onTap: () {
+                    print(contact.id);
+                    print('Outer index: $outerIndex, Inner index: $innerIndex');
+                    appRouter.push(DeleteEditRoute(id: innerIndex,contact:contact)).then((value) {
+                      searchController.clear();
+                      return authStore.loadContacts();
+                    });
+                  },
+                  child: Observer(
+                    builder: (context) {
+                      var isCheck = authStore.selectedContacts.contains(contact);
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundImage: contact.image != null &&
+                                    contact.image!.isNotEmpty
+                                    ? FileImage(File(contact.image!))
+                                    : null, // Handle null or empty image paths
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                "${contact.firstname} ",
+                                style: textMedium.copyWith(color: AppColor.grey),
+                              ),
+                              Text(
+                                "${contact.id} ",
+                                style: textMedium.copyWith(color: AppColor.grey),
+                              ),
+                              Text(
+                                "$innerIndex ", // Display the index within the letter group
+                                style: textMedium.copyWith(color: AppColor.grey),
+                              ),
+                              Text(contact.lastname!, style: textMedium),
+                              Spacer(),
+                              SizedBox(width: 10),
+                              if (authStore.value)
+                                GestureDetector(
                                   onTap: () {
                                     authStore.isChecked(contact);
-                                    print(authStore.selectedContacts.contains(contact));
                                   },
-                                      child: Container(
-                                        height: 20,
-                                        width: 20,
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            width: 1,
-                                            color: AppColor.blueDiamond,
-                                          ),
-                                          shape: BoxShape.circle,
-                                          color: isCheck
-                                              ? Colors.blue
-                                              : AppColor.transparent,
-                                        ),
-                                        child: isCheck
-                                            ? Icon(Icons.check,
-                                            size: 15.0, color: Colors.white)
-                                            : null,
+                                  child: Container(
+                                    height: 20,
+                                    width: 20,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        width: 1,
+                                        color: AppColor.blueDiamond,
                                       ),
+                                      shape: BoxShape.circle,
+                                      color: isCheck
+                                          ? Colors.blue
+                                          : AppColor.transparent,
+                                    ),
+                                    child: isCheck
+                                        ? Icon(Icons.check,
+                                        size: 15.0, color: Colors.white)
+                                        : null,
+                                  ),
                                 )
-                          ],
-                        ).wrapPaddingSymmetric(vertical: 8),
-                        Divider(),
-                      ],
-                    );
-                  }
-                ),
-              );
-            }).toList(),
+                            ],
+                          ).wrapPaddingSymmetric(vertical: 8),
+                          Divider(),
+                        ],
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
           ],
         ).wrapPaddingSymmetric(horizontal: 15.w);
       },
     );
+
+
   }
 }

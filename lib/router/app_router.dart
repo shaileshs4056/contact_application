@@ -7,6 +7,8 @@ import 'package:contact_number_demo/ui/home/show_contact_list.dart';
 import 'package:contact_number_demo/ui/splash/splash_page.dart';
 import 'package:flutter/material.dart';
 
+import '../data/model/contact/contact.dart';
+
 part 'app_router.gr.dart';
 
 @AutoRouterConfig(

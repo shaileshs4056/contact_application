@@ -19,13 +19,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 @RoutePage()
 class DeleteEditPage extends StatefulWidget {
   final int id;
-  DeleteEditPage({super.key, required this.id});
+  final ContactListModel contact;
+  DeleteEditPage({super.key, required this.id,required this.contact});
   @override
   State<DeleteEditPage> createState() => _DeleteEditPageState();
 }
@@ -62,12 +62,11 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
   void initState() {
     _formKey = GlobalKey<FormState>();
     super.initState();
-    final contact = appDB.contacts[widget.id]; // Retrieve contact by index
-    firstNameController = TextEditingController(text: contact.firstname);
-    lastNameController = TextEditingController(text: contact.lastname);
-    CompanyController = TextEditingController(text: contact.company);
-    oldImage = File(contact.image!);
 
+    firstNameController = TextEditingController(text: widget.contact.firstname);
+    lastNameController = TextEditingController(text: widget.contact.lastname);
+    CompanyController = TextEditingController(text: widget.contact.company);
+    oldImage = File(widget.contact.image!);
     firstNameNode = FocusNode();
     lastNameNode = FocusNode();
     CompanyNode = FocusNode();
@@ -121,15 +120,10 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
               if (_formKey.currentState?.validate() ?? false) {
                 // Get the index from widget.id (assuming widget.id represents the index)
                 final index = widget.id;
+                print(index);
 
-                // Retrieve the current contacts list
-                final contacts = await appDB.contacts;
-
-                // Get the existing contact at the index
-                final existingContact = contacts[index];
-
-                // Update the fields directly
-                final updatedContact = existingContact.copyWith(
+                final updatedContact = widget.contact.copyWith(
+                  id: widget.contact.id,
                   firstname: firstNameController.text,
                   lastname: lastNameController.text,
                   company: CompanyController.text,
@@ -138,11 +132,13 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
 
                 // Update the contact in Hive
                 await appDB.updateContactAtIndex(index, updatedContact);
-                print("hello");
 
                 // Clear the form and navigate
                 clearForm();
                appRouter.maybePop();
+              }
+              else{
+                print("somthing is wrong");
               }
             },
             child: Text(
@@ -208,7 +204,7 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
                     barrierDismissible: false, // User must tap button to dismiss
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        title: Text('Exit'),
+                        title: Text('Delete'),
                         content: Text('you want delete this item? '),
                         actions: <Widget>[
                           TextButton(
@@ -221,7 +217,7 @@ class _DeleteEditPageState extends State<DeleteEditPage> {
                           TextButton(
                             child: Text('Delete',style: textExtraBold.copyWith(color: AppColor.red,),),
                             onPressed: () async {
-                              appDB.deleteContactById(widget.id);
+                              appDB.deleteContact(widget.contact);
                               appRouter.back();// Return true if the user confirms
                               authStore.loadContacts();
 

@@ -94,7 +94,6 @@ class AppDB {
 
     // Remove the contact with the matching ID
     contacts.removeWhere((c) => c.id == id);
-
     // Save the updated contacts list back to the Hive box
     await _box.put("contacts", contacts);
 
@@ -114,14 +113,20 @@ class AppDB {
     print("Setting favorite status to true for selected contacts...");
 
     for (var selectedContact in selectedContacts) {
-      final index = contactsList.indexWhere((c) => c.id == selectedContact.id);
+      print(selectedContact);
+
+      // Find the contact in the contactsList using equality comparison
+      final index = contactsList.indexOf(selectedContact);
+      print(index);
+
       if (index != -1) {
+        // If found, toggle the favorite status of the contact
         final updatedContact = contactsList[index].copyWith(isFavorite: true);
 
         // Update the contact in the list
         contactsList[index] = updatedContact;
       } else {
-        print("Contact with id ${selectedContact.id} not found.");
+        print("Contact not found.");
       }
     }
 
@@ -133,16 +138,13 @@ class AppDB {
 
 
 
+
   Future<void> updateContactAtIndex(
       int index, ContactListModel updatedContact) async {
     final contacts = this.contacts;
-    if (index >= 0 && index < contacts.length) {
       contacts[index] = updatedContact;
-      await setValue(
-          "contacts", contacts); // Use setValue to save the updated list
-    } else {
-      throw IndexError(index, contacts, 'Index out of range');
-    }
+      await _box.put("contacts", contacts);
+
   }
 
   void logout() {
